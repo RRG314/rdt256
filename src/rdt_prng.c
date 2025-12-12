@@ -1,25 +1,29 @@
 #include "rdt.h"
+#include "rdt_core.h"
+#include <stdint.h>
 
-void rdt_prng_init(rdt_prng_state *st, uint64_t seed) {
-    st->S[0] = seed;
-    st->S[1] = seed ^ 0x9E3779B97F4A7C15ULL;
-    st->S[2] = seed << 1;
-    st->S[3] = ~seed;
+static uint64_t S[4];
+static uint64_t K[4] = {
+    0xA3B1C6E5D4879F12ULL,
+    0xC1D2E3F4A596B708ULL,
+    0x9A7B6C5D4E3F2A19ULL,
+    0x123456789ABCDEF0ULL
+};
+
+void rdt_prng_init(uint64_t seed)
+{
+    S[0] = seed ^ 0x9E3779B97F4A7C15ULL;
+    S[1] = (seed << 1) ^ 0xC2B2AE3D27D4EB4FULL;
+    S[2] = ~seed;
+    S[3] = seed ^ (seed >> 1);
 }
 
-uint64_t rdt_prng_next(rdt_prng_state *st) {
-    static const uint64_t K[4] = {
-        0x243F6A8885A308D3ULL,
-        0x13198A2E03707344ULL,
-        0xA4093822299F31D0ULL,
-        0x082EFA98EC4E6C89ULL
-    };
+uint64_t rdt_prng_next(void)
+{
+    S[0] ^= rdt_mix(S[1], K);
+    S[1] ^= rdt_mix(S[2], K);
+    S[2] ^= rdt_mix(S[3], K);
+    S[3] ^= rdt_mix(S[0], K);
 
-    /* evolve internal state */
-    st->S[0] ^= rdt_mix(st->S[1], K);
-    st->S[1] ^= rdt_mix(st->S[2], K);
-    st->S[2] ^= rdt_mix(st->S[3], K);
-    st->S[3] ^= rdt_mix(st->S[0], K);
-
-    return st->S[0];
+    return S[0];
 }
