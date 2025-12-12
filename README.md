@@ -1,188 +1,192 @@
-# **RDT Cryptographic Suite**
+RDT Cryptographic Suite (Experimental Research Code)
 
 Recursive Depth Transform (RDT) Randomness Primitives
 Author: Steven Reid
-License: MIT (or Apache-2.0)
+License: MIT
 
----
+IMPORTANT DISCLAIMER
+This repository contains experimental research code, not production cryptographic software.
+The RDT-CORE, RDT-PRNG, and RDT-DRBG components:
 
-## Overview
+have not undergone formal cryptanalysis
 
-The RDT Cryptographic Suite is a collection of randomness primitives based on a nonlinear transformation combining:
+have no proven security guarantees
 
-* recursive bit-depth evaluation
-* scalar-field projections
-* ARX (Add-Rotate-Xor) diffusion
-* epsilon-channel perturbation layers
+are not standardized primitives
 
-The result is a high-diffusion, high-entropy transformation suitable for pseudorandom number generation and deterministic random bit generation.
+must NOT be used for real-world security, encryption, authentication, key generation, or any system requiring cryptographically secure randomness
 
-This repository currently includes:
+All components are intended solely for research, experimentation, benchmarking, and mathematical exploration.
+Nothing here should be considered secure.
 
-| Component  | Status | Description                                       |
-| ---------- | ------ | ------------------------------------------------- |
-| RDT-CORE   | Stable | Core 64-bit nonlinear mixing primitive            |
-| RDT-PRNG   | Stable | High-quality pseudorandom generator               |
-| RDT-DRBG   | Stable | Deterministic Random Bit Generator with reseeding |
-| Test Suite | Stable | Avalanche testing and statistical analysis tools  |
+OVERVIEW
+The RDT Cryptographic Suite is a set of experimental randomness primitives based on a nonlinear transformation combining:
 
-There are **no encryption or stream cipher components** in the repository.
+recursive bit-depth analysis
 
----
+scalar-field projections
 
-## Key Features
+epsilon-channel perturbation
 
-* 64-bit mixing primitive with strong diffusion
-* 256-bit state and 256-bit keying for PRNG/DRBG
-* High avalanche performance (~32 flipped bits per 64-bit output)
-* Stable behavior across seeds (verified via large seed sweeps)
-* Strong performance on Shannon entropy, chi-square, runs, serial tests
-* DRBG includes automatic reseeding, forward secrecy, and backward secrecy
-* Implemented in portable C99 with simple, self-contained code
+ARX (Add-Rotate-Xor) diffusion
 
----
+The project explores statistical and structural properties of recursive-depth nonlinear functions.
+It is not intended to produce hardened cryptographic primitives.
 
-## Repository Structure
+This repository includes:
+RDT-CORE (Experimental) — Core 64-bit nonlinear mixing primitive
+RDT-PRNG (Experimental) — High-diffusion pseudorandom generator
+RDT-DRBG (Experimental) — DRBG with internal key evolution and reseeding
+Test Suite (Stable) — Avalanche and statistical randomness tests
 
-```
-RDT-Crypto/
-│
-├── src/
-│   ├── rdt_core.c
-│   ├── rdt_prng.c
-│   ├── rdt_drbg.c
-│   └── rdt.h
-│
-├── tests/
-│   ├── avalanche_test.py
-│   ├── statistics_test.py
-│   ├── dieharder_instructions.md
-│   └── practrand_instructions.md
-│
-├── docs/
-│   ├── architecture.md
-│   ├── core.md
-│   ├── prng.md
-│   ├── security.md
-│   ├── tests.md
-│   └── roadmap.md
-│
-├── LICENSE
-└── README.md
-```
+KEY FEATURES (Experimental Only)
 
----
+strong empirical diffusion
 
-## RDT-CORE
+256-bit internal state
 
-RDT-CORE is the foundational 64-bit nonlinear function used by all components in the suite.
-It combines:
+high avalanche performance (~32 flipped bits per 64-bit output)
 
-* recursive bit-depth
-* scalar-field interactions
-* epsilon-based mixing
-* ARX diffusion steps
-* data-dependent rotational schedules
+stable behavior across seeds
 
-The function has been subjected to testing including:
+good performance on statistical tests
 
-* avalanche and multi-round avalanche
-* bit-position diffusion uniformity
-* differential trail scanning
-* seed-sweep avalanche stability
-* FFT and autocorrelation analysis
+simple, portable C99 implementation
 
-Empirical tests show strong diffusion and no detectable structural weaknesses under standard randomness diagnostics.
+None of these properties imply cryptographic security.
 
----
+REPOSITORY STRUCTURE
 
-## RDT-PRNG
+src/
+rdt_core.c
+rdt_prng.c
+rdt_drbg.c
+rdt.h
 
-The PRNG uses the core mixing function to evolve a 256-bit internal state and produce 64-bit outputs.
+tests/
+run_results.py
 
-Properties:
+docs/
+architecture.md
+core.md
+prng.md
+security.md
+tests.md
+roadmap.md
 
-* deterministic
-* passes common statistical randomness tests
-* high diffusion across outputs
-* retains stable behavior independent of seed
-* simple interface for integration
-* suitable for simulations, procedural generation, and non-cryptographic applications
+LICENSE
+README.md
 
----
+RDT-CORE (Research Primitive)
+RDT-CORE is a 64-bit nonlinear transformation mixing:
 
-## RDT-DRBG
+recursive bit depth
 
-The DRBG expands the PRNG design into a stateful, periodically reseeded generator supporting:
+scalar-field projections
 
-* internal state mixing
-* key updates
-* automatic reseeding after a configurable interval
-* forward secrecy
-* backward secrecy
-* deterministic reproducibility for testing purposes
+epsilon-channel perturbation
 
-Extensive testing (multi-MB streams) confirms strong statistical quality and stable output characteristics.
+ARX-based rotation and multiplication
 
----
+Evaluated using:
 
-## Testing
+avalanche and multi-round avalanche tests
 
-The repository provides tooling for:
+bit diffusion heatmaps
 
-### Avalanche and Diffusion Tests
+differential trail scanning
 
-* single-round avalanche
-* multi-round avalanche
-* bit-flip histograms
-* differential trails
-* 1000-seed avalanche sweeps
+autocorrelation and FFT analysis
 
-### Statistical Randomness Tests
+seed-sweep avalanche stability
 
-* Shannon entropy
-* byte-frequency distribution
-* serial chi-square
-* poker test
-* runs test
-* autocorrelation
-* FFT frequency analysis
-* Maurer universal test
+These results describe statistical behavior only and do not constitute evidence of cryptographic strength.
 
-External test instructions for Dieharder and PractRand are also included.
+RDT-PRNG (Not Cryptographically Secure)
+The PRNG is a deterministic 256-bit state machine using RDT-CORE.
+It shows strong statistical properties and stable behavior across seeds.
+Suitable for: simulations, visualization, experimental analysis, academic exploration.
+Not suitable for: cryptographic use, secure randomness, protocols, or systems requiring attack resistance.
 
----
+RDT-DRBG (Experimental Only)
+Adds evolving key material, reseeding, and forward/backward mixing concepts.
+Research mechanism only.
+Not a standardized or vetted DRBG.
+Not appropriate for real-world security.
 
-## Documentation
+TESTING
+Statistical Tests:
 
-The `docs/` directory contains:
+Shannon entropy
 
-* detailed architecture of the RDT transformation
-* mathematical description of RDT-CORE
-* PRNG and DRBG specifications
-* security considerations and limitations
-* description of test methodology
-* development roadmap for future improvements
-  (hash, MAC, KDF components are listed as possibilities, not implemented)
+byte-frequency distribution
 
----
+chi-square
 
-## Roadmap
+serial tests
 
-future research areas include:
+poker test
 
-* RDT-based hash function
-* KDF constructions
-* MAC based on RDT-CORE
-* extended test vectors and formal proofs
+runs test
 
-These components are not included in this repository at this stage.
+FFT spectrum
 
----
+autocorrelation
 
-## License
+Maurer universal
 
-MIT License 
+Diffusion Tests:
 
----
+single-bit avalanche
 
+multi-round avalanche
+
+bit-position diffusion heatmaps
+
+differential trail mapping
+
+1000-seed avalanche sweep
+
+These tests measure statistical behavior, not cryptographic strength.
+
+DOCUMENTATION
+Documentation in docs/ includes:
+
+architecture overview
+
+breakdown of RDT-CORE
+
+PRNG and DRBG design
+
+security considerations and limitations
+
+testing methodology
+
+roadmap
+
+Documentation emphasizes the experimental and non-cryptographic nature of the project.
+
+ROADMAP
+Future research directions (non-binding):
+
+RDT-based hash function
+
+sponge/XOF experiments
+
+KDF constructions
+
+MAC experiments
+
+deeper nonlinear analysis
+
+extended multi-terabyte testing
+
+cycle-structure exploration
+These are exploratory ideas only.
+
+LICENSE
+MIT License — appropriate for open research and experimentation.
+
+FINAL WARNING
+Nothing in this repository should be used for real-world cryptography.
+This is purely experimental research code and has not been evaluated for security.
