@@ -2,28 +2,31 @@
 #include "rdt_core.h"
 #include <stdint.h>
 
-static uint64_t S[4];
-static uint64_t K[4] = {
-    0xA3B1C6E5D4879F12ULL,
-    0xC1D2E3F4A596B708ULL,
-    0x9A7B6C5D4E3F2A19ULL,
-    0x123456789ABCDEF0ULL
-};
+static uint64_t Kd[4];
+static uint64_t Sd[4];
+static uint64_t reseed_counter = 0;
 
-void rdt_prng_init(uint64_t seed)
+void rdt_drbg_init(uint64_t seed)
 {
-    S[0] = seed ^ 0x9E3779B97F4A7C15ULL;
-    S[1] = (seed << 1) ^ 0xC2B2AE3D27D4EB4FULL;
-    S[2] = ~seed;
-    S[3] = seed ^ (seed >> 1);
+    Kd[0] = seed ^ 0xA5A5A5A5A5A5A5A5ULL;
+    Kd[1] = ~seed;
+    Kd[2] = seed * 0x9E3779B97F4A7C15ULL;
+    Kd[3] = seed ^ (seed << 1);
+
+    Sd[0] = seed ^ 0xC2B2AE3D27D4EB4FULL;
+    Sd[1] = ~seed;
+    Sd[2] = (seed << 1) ^ 0xD6E8FEB86659FD93ULL;
+    Sd[3] = seed ^ 0x123456789ABCDEF0ULL;
 }
 
-uint64_t rdt_prng_next(void)
+uint64_t rdt_drbg_next(void)
 {
-    S[0] ^= rdt_mix(S[1], K);
-    S[1] ^= rdt_mix(S[2], K);
-    S[2] ^= rdt_mix(S[3], K);
-    S[3] ^= rdt_mix(S[0], K);
+    for (int i = 0; i < 4; i++) {
+        Sd[i] = rdt_mix(Sd[i] ^ Kd[i], Kd);
+        Kd[i] ^= rdt_mix(Sd[i], Kd);
+    }
 
-    return S[0];
+    reseed_counter++;
+
+    return Sd[0];
 }
