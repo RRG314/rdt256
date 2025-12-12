@@ -21,6 +21,7 @@ These components are suitable for experimentation, evaluation, and research.
 
 Ongoing work includes:
 
+- dieharder, nist, and all other tests need to be conductucted
 - deeper structural evaluation of the RDT-CORE transform
 - consistency testing across a broader range of seeds
 - expanded avalanche and differential analysis
