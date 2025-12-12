@@ -1,0 +1,56 @@
+# ============================
+# Build Artifacts (C)
+# ============================
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.out
+rdt_prng
+rdt_drbg
+
+# ============================
+# Python Cache / Env
+# ============================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+.env/
+.venv/
+
+# ============================
+# Test Output Files
+# ============================
+RDT_RESULTS.txt
+RDT_REPORT.md
+
+# ============================
+# Jupyter / Colab
+# ============================
+.ipynb_checkpoints/
+*.ipynb
+
+# ============================
+# OS / Editor Specific Files
+# ============================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ============================
+# Logs / Temporary Files
+# ============================
+*.log
+*.tmp
+*.bak
+
+# ============================
+# Build directories
+# ============================
+build/
+dist/
