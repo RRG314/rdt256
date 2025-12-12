@@ -1,42 +1,29 @@
 #include "rdt.h"
+#include "rdt_core.h"
+#include <stdint.h>
 
-static const uint64_t KCONST[4] = {
-    0x3BD39E10CB0EF593ULL,
-    0xC1D1F0A3379B2E6AULL,
-    0x5F7A13C9240BADF1ULL,
-    0x9A2C5F0137E60C4EULL
+static uint64_t S[4];
+static uint64_t K[4] = {
+    0xA3B1C6E5D4879F12ULL,
+    0xC1D2E3F4A596B708ULL,
+    0x9A7B6C5D4E3F2A19ULL,
+    0x123456789ABCDEF0ULL
 };
 
-void rdt_drbg_init(rdt_drbg_state *st, const uint64_t seed[4]) {
-    for (int i = 0; i < 4; i++) {
-        st->K[i] = seed[i] ^ KCONST[i];
-        st->S[i] = seed[i] ^ ~KCONST[i];
-    }
-    st->reseed_counter = 1;
+void rdt_prng_init(uint64_t seed)
+{
+    S[0] = seed ^ 0x9E3779B97F4A7C15ULL;
+    S[1] = (seed << 1) ^ 0xC2B2AE3D27D4EB4FULL;
+    S[2] = ~seed;
+    S[3] = seed ^ (seed >> 1);
 }
 
-void rdt_drbg_reseed(rdt_drbg_state *st, const uint64_t seed[4]) {
-    for (int i = 0; i < 4; i++) {
-        st->K[i] ^= seed[i];
-        st->S[i] ^= rdt_mix(seed[i], st->K);
-    }
-    st->reseed_counter = 1;
-}
+uint64_t rdt_prng_next(void)
+{
+    S[0] ^= rdt_mix(S[1], K);
+    S[1] ^= rdt_mix(S[2], K);
+    S[2] ^= rdt_mix(S[3], K);
+    S[3] ^= rdt_mix(S[0], K);
 
-uint64_t rdt_drbg_next(rdt_drbg_state *st) {
-    /* Mix state */
-    st->S[0] = rdt_mix(st->S[0] ^ st->K[0], st->K);
-    st->S[1] = rdt_mix(st->S[1] ^ st->K[1], st->K);
-    st->S[2] = rdt_mix(st->S[2] ^ st->K[2], st->K);
-    st->S[3] = rdt_mix(st->S[3] ^ st->K[3], st->K);
-
-    /* Key evolution for forward secrecy */
-    for (int i = 0; i < 4; i++)
-        st->K[i] ^= rdt_mix(st->S[i], st->K);
-
-    /* Reseed interval e.g. every 2^20 outputs */
-    if (++st->reseed_counter >= (1ULL << 20))
-        rdt_drbg_reseed(st, st->S);
-
-    return st->S[0];
+    return S[0];
 }
