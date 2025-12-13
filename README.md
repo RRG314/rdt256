@@ -1,11 +1,12 @@
 
-RDT Cryptographic Suite (Experimental Research Code)
+**RDT Cryptographic Suite (Experimental Research Code)**
 
-Recursive Depth Transform (RDT) Randomness Primitives
+**Recursive Depth Transform (RDT) Randomness Primitives**
 Author: Steven Reid
+ORCID:0009-0003-9132-3410
 License: MIT
 
-IMPORTANT DISCLAIMER
+**IMPORTANT DISCLAIMER**
 This repository contains experimental research code, not production cryptographic software.
 The RDT-CORE, RDT-PRNG, RDT-PRNG_STREAM, and RDT-DRBG components:
 
@@ -17,7 +18,7 @@ The RDT-CORE, RDT-PRNG, RDT-PRNG_STREAM, and RDT-DRBG components:
 All components are intended solely for research, experimentation, benchmarking, and mathematical exploration.
 Nothing here should be considered secure.
 
-OVERVIEW
+**OVERVIEW**
 The RDT Cryptographic Suite is a set of experimental randomness primitives based on a nonlinear transformation combining:
 
 * recursive bit-depth analysis
@@ -35,7 +36,7 @@ RDT-PRNG_STREAM (Experimental) — Streaming RDT-PRNG variant for external test 
 RDT-DRBG (Experimental) — DRBG with internal key evolution and reseeding
 Test Suite (Stable) — Avalanche and statistical randomness tests
 
-KEY FEATURES (Experimental Only)
+**KEY FEATURES (Experimental Only)**
 
 * strong empirical diffusion
 * 256-bit internal state
@@ -108,26 +109,38 @@ Empirical properties (RDT-PRNG_STREAM):
 
 Statistical test results (RDT-PRNG_STREAM):
 
-* Dieharder: full battery run, no FAIL results, occasional WEAK results within normal statistical expectations
-* SmokeRand: express and default batteries, multi-gigabyte testing, no failures observed
+* **Dieharder**: full battery run via `./rdt_prng stream | dieharder -a -g 200`; no `FAILED` tests; a few `WEAK` results (e.g. in `diehard_craps`, `sts_runs`, some `sts_serial` / `rgb_bitdist` cases), which is typical for non-cryptographic PRNGs over large batteries
+* **SmokeRand express**: run via `./rdt_prng stream | smokerand express stdin64`; 7/7 tests reported as `Ok` (including `byte_freq`, `bspace32_1d`, `bspace8_4d`, `bspace4_8d`, `bspace4_8d_dec`, `linearcomp_high`, `linearcomp_low`); quality score **4.00 (good)**; ≈ 151,155,712 bytes processed (~2^27.17, ~128 MiB)
+* **SmokeRand default**: run via `./rdt_prng stream | smokerand default stdin64`; default battery currently in progress / partially analyzed; early tests (e.g. `monobit_freq` on 2^34 bits with p ≈ 0.496488, `byte_freq` p ≈ 0.690814, `word16_freq` p ≈ 0.496131, several `bspace*` tests with reasonable p-values) show no anomalies so far. This section can be updated with a full summary once the complete battery finishes.
+
+Internal test harness measurements:
+
+* average Hamming distance between paired outputs ≈ 32.09 bits
+* entropy per bit reported as 1.000000
+* bit frequencies per position in approximately [0.4993, 0.5007]
+
+These are empirical statistical results only and do not imply cryptographic strength.
 
 Performance (streaming mode, same environment):
 
-
 Performance was measured by streaming **1 GiB** of output through a pipe on the same environment (Google Colab VM):
 
-| Generator        | State   | Throughput | Time per 64-bit output |
-|-----------------|---------|-----------:|------------------------:|
-| SplitMix64      | 64-bit  | ~155 MiB/s | ~49 ns                  |
-| xoshiro256**    | 256-bit | ~150 MiB/s | ~51 ns                  |
-| **RDT-PRNG_STREAM** | 256-bit | **~15 MiB/s** | **~500 ns**               |
+| Generator           | State   |    Throughput | Time per 64-bit output |
+| ------------------- | ------- | ------------: | ---------------------: |
+| SplitMix64          | 64-bit  |    ~155 MiB/s |                 ~49 ns |
+| xoshiro256**        | 256-bit |    ~150 MiB/s |                 ~51 ns |
+| **RDT-PRNG_STREAM** | 256-bit | **~15 MiB/s** |            **~500 ns** |
 
 Interpretation:
 
-- RDT-PRNG_STREAM is about **10× slower** than minimal ARX generators (SplitMix64, xoshiro256**)
-- The slowdown is expected given the heavier, recursive nonlinear mixing
-- Performance should be considered **moderate** and acceptable for simulations, experimentation, and statistical testing, but **not optimized for maximum throughput**
-- No performance comparison has been made against cryptographic generators in this environment, so no claims are made in that direction
+* RDT-PRNG_STREAM is about **10× slower** than minimal ARX generators (SplitMix64, xoshiro256**)
+* The slowdown is expected given the heavier, recursive nonlinear mixing
+* Performance should be considered **moderate** and acceptable for simulations, experimentation, and statistical testing, but **not optimized for maximum throughput**
+* No performance comparison has been made against cryptographic generators in this environment, so no claims are made in that direction
+
+Acknowledgement (SmokeRand):
+External statistical testing of RDT-PRNG_STREAM was performed using the **SmokeRand** test suite by GitHub user **`alvoskov`**.
+The RDT author is solely responsible for interpreting these results; this use and mention do **not** imply endorsement or validation of RDT by the SmokeRand author.
 
 RDT-DRBG (Experimental Only)
 Adds evolving key material, reseeding, and forward/backward mixing concepts.
@@ -158,8 +171,9 @@ Diffusion Tests:
 
 External Statistical Batteries (RDT-PRNG_STREAM):
 
-* Dieharder full test suite: no FAIL results, occasional WEAK results
-* SmokeRand express and default batteries: multi-gigabyte testing, no failures
+* Dieharder full test suite: no `FAILED` tests; some `WEAK` results within normal statistical expectations
+* SmokeRand express battery: 7/7 tests `Ok`, quality score 4.00 (good), ~151 MB of data tested
+* SmokeRand default battery: long-run test currently in progress / partially reviewed; early tests (monobit, byte/word frequency, birthday spacings) show reasonable p-values and no obvious anomalies so far
 
 These tests measure statistical behavior, not cryptographic strength.
 
@@ -171,7 +185,7 @@ Documentation in docs/ includes:
 * PRNG and DRBG design
 * security considerations and limitations
 * testing methodology
-* roadmap
+  and roadmap
 
 Documentation emphasizes the experimental and non-cryptographic nature of the project.
 
@@ -194,3 +208,4 @@ MIT License — appropriate for open research and experimentation.
 FINAL WARNING
 Nothing in this repository should be used for real-world cryptography.
 This is purely experimental research code and has not been evaluated for security.
+
