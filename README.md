@@ -113,11 +113,21 @@ Statistical test results (RDT-PRNG_STREAM):
 
 Performance (streaming mode, same environment):
 
-* SplitMix64: ~155 MiB/s, ~49 ns per 64-bit output
-* xoshiro256**: ~150 MiB/s, ~51 ns per 64-bit output
-* RDT-PRNG_STREAM: ~15 MiB/s, ~500 ns per 64-bit output
 
-RDT-PRNG_STREAM is about 10× slower than minimal ARX generators due to heavier, recursive nonlinear mixing, but remains significantly faster than typical cryptographic generators. These performance numbers and tests describe statistical and practical behavior only and do not imply cryptographic security.
+Performance was measured by streaming **1 GiB** of output through a pipe on the same environment (Google Colab VM):
+
+| Generator        | State   | Throughput | Time per 64-bit output |
+|-----------------|---------|-----------:|------------------------:|
+| SplitMix64      | 64-bit  | ~155 MiB/s | ~49 ns                  |
+| xoshiro256**    | 256-bit | ~150 MiB/s | ~51 ns                  |
+| **RDT-PRNG_STREAM** | 256-bit | **~15 MiB/s** | **~500 ns**               |
+
+Interpretation:
+
+- RDT-PRNG_STREAM is about **10× slower** than minimal ARX generators (SplitMix64, xoshiro256**)
+- The slowdown is expected given the heavier, recursive nonlinear mixing
+- Performance should be considered **moderate** and acceptable for simulations, experimentation, and statistical testing, but **not optimized for maximum throughput**
+- No performance comparison has been made against cryptographic generators in this environment, so no claims are made in that direction
 
 RDT-DRBG (Experimental Only)
 Adds evolving key material, reseeding, and forward/backward mixing concepts.
