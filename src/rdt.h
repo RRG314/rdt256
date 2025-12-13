@@ -3,14 +3,17 @@
 
 #include <stdint.h>
 
-uint64_t rdt_mix(uint64_t x, uint64_t K[4]);
+/* ================= CORE ================= */
 
-/* PRNG */
+/* Core RDT mixing primitive */
+uint64_t rdt_mix(uint64_t x, const uint64_t K[4]);
+
+/* ================= PRNG VARIANT ================= */
+
+/* Initialize PRNG with 64-bit seed */
 void rdt_prng_init(uint64_t seed);
-uint64_t rdt_prng_next(void);
 
-/* DRBG */
-void rdt_drbg_init(uint64_t seed);
-uint64_t rdt_drbg_next(void);
+/* Generate next 64-bit output */
+uint64_t rdt_prng_next(void);
 
 #endif
