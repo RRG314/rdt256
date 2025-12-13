@@ -1,10 +1,13 @@
 
-**RDT Cryptographic Suite (Experimental Research Code)**
+**RDT256 Cryptographic Suite (Experimental Research Code)**
 
-**Recursive Depth Transform (RDT) Randomness Primitives**
 Author: Steven Reid
+
 ORCID:0009-0003-9132-3410
+
 License: MIT
+
+
 
 **IMPORTANT DISCLAIMER**
 This repository contains experimental research code, not production cryptographic software.
@@ -47,7 +50,7 @@ Test Suite (Stable) — Avalanche and statistical randomness tests
 
 None of these properties imply cryptographic security.
 
-REPOSITORY STRUCTURE
+**REPOSITORY STRUCTURE**
 
 src/
 rdt_core.c
@@ -94,7 +97,7 @@ It shows strong statistical properties and stable behavior across seeds.
 Suitable for: simulations, visualization, experimental analysis, academic exploration.
 Not suitable for: cryptographic use, secure randomness, protocols, or systems requiring attack resistance.
 
-RDT-PRNG_STREAM (Experimental, Recommended for Testing)
+**RDT-PRNG_STREAM (Experimental, Recommended for Testing)**
 RDT-PRNG_STREAM is a streaming reference implementation of RDT-PRNG. It uses the same 256-bit state and core mixing function as RDT-PRNG, but exposes a `stdin64`-compatible binary stream (64-bit values written continuously to stdout).
 
 This variant is the **most thoroughly tested implementation** in this repository and is the **recommended version for external evaluation and benchmarking** (Dieharder, SmokeRand, etc.).
@@ -208,4 +211,3 @@ MIT License — appropriate for open research and experimentation.
 FINAL WARNING
 Nothing in this repository should be used for real-world cryptography.
 This is purely experimental research code and has not been evaluated for security.
-
