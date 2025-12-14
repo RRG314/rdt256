@@ -3,6 +3,6 @@
 
 #include <stdint.h>
 
-uint64_t rdt_mix(uint64_t x, uint64_t K[4]);
+uint64_t rdt_mix(uint64_t x, const uint64_t K[4]);
 
 #endif
