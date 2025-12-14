@@ -160,6 +160,31 @@ Like RDT-PRNG, it is **not intended for cryptographic use**.
 * Internal behavior is identical for a given seed
 * Differences are limited to output interface, not algorithmic structure
 
+### Implementation and Performance Update
+
+Earlier performance measurements for RDT-PRNG_STREAM were obtained using an
+unbuffered reference implementation, in which each 64-bit output was written
+individually to `stdout`. In that configuration, output I/O overhead dominated
+runtime and resulted in relatively low observed throughput.
+
+Subsequent revisions introduced implementation-level optimizations that preserve
+identical generator logic and output behavior, including:
+
+- buffered output for streaming writes
+- aggressive inlining of core mixing functions
+- reduced function call overhead
+- higher compiler optimization levels
+
+No changes were made to the RDT-CORE mixing primitive, the PRNG state transition
+logic, or the statistical properties of the generator.
+
+With these changes, sustained streaming throughput increased substantially under
+pipe-based workloads. Updated and comparative performance measurements are
+documented in the README Performance section.
+
+The original unbuffered measurements remain valid for historical reference and
+are retained for transparency.
+
 ---
 
 ## RDT-DRBG
