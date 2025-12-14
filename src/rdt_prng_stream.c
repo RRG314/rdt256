@@ -14,10 +14,6 @@ static const uint64_t K[4] = {
     0x123456789ABCDEF0ULL
 };
 
-/* -------------------------------------------------- */
-/* PRNG API                                           */
-/* -------------------------------------------------- */
-
 void rdt_prng_init(uint64_t seed) {
     S[0] = seed ^ 0x9E3779B97F4A7C15ULL;
     S[1] = (seed << 1) ^ 0xC2B2AE3D27D4EB4FULL;
@@ -25,29 +21,32 @@ void rdt_prng_init(uint64_t seed) {
     S[3] = seed ^ (seed >> 1);
 }
 
-uint64_t rdt_prng_next(void) {
-    /* 4-word nonlinear state update */
-    S[0] ^= rdt_mix(S[1], K);
-    S[1] ^= rdt_mix(S[2], K);
-    S[2] ^= rdt_mix(S[3], K);
-    S[3] ^= rdt_mix(S[0], K);
+static inline uint64_t rdt_prng_next_fast(void) {
+    uint64_t t0 = rdt_mix(S[1], K);
+    uint64_t t1 = rdt_mix(S[2], K);
+    uint64_t t2 = rdt_mix(S[3], K);
+    uint64_t t3 = rdt_mix(S[0], K);
+
+    S[0] ^= t0;
+    S[1] ^= t1;
+    S[2] ^= t2;
+    S[3] ^= t3;
+
     return S[0];
 }
 
-/* -------------------------------------------------- */
-/* Stream interface (stdin64 compatible)               */
-/* -------------------------------------------------- */
-
 int main(int argc, char **argv) {
     uint64_t seed = 0x0123456789ABCDEFULL;
-    if (argc > 1) {
+    if (argc > 1)
         seed = strtoull(argv[1], NULL, 0);
-    }
 
     rdt_prng_init(seed);
 
+    uint64_t buf[1024];
+
     for (;;) {
-        uint64_t x = rdt_prng_next();
-        fwrite(&x, sizeof(uint64_t), 1, stdout);
+        for (int i = 0; i < 1024; i++)
+            buf[i] = rdt_prng_next_fast();
+        fwrite(buf, sizeof(uint64_t), 1024, stdout);
     }
 }
