@@ -102,7 +102,7 @@ RDT-PRNG_STREAM is a streaming reference implementation of RDT-PRNG. It uses the
 
 This variant is the **most thoroughly tested implementation** in this repository and is the **recommended version for external evaluation and benchmarking** (Dieharder, SmokeRand, etc.).
 
-Empirical properties (RDT-PRNG_STREAM):
+**Empirical properties (RDT-PRNG_STREAM)**:
 
 * bit balance ≈ 0.5 per bit over long runs
 * average avalanche ≈ 32 flipped bits per 64-bit output under single-bit input changes
@@ -123,7 +123,7 @@ Internal test harness measurements:
 
 These are empirical statistical results only and do not imply cryptographic strength.
 
-Performance (streaming mode, same environment):
+**Performance (streaming mode, same environment)**:
 
 Performance was measured by streaming **1 GiB** of output through a pipe on the same environment (Google Colab VM):
 
@@ -140,6 +140,81 @@ Interpretation:
 * Performance should be considered **moderate** and acceptable for simulations, experimentation, and statistical testing, but **not optimized for maximum throughput**
 * No performance comparison has been made against cryptographic generators in this environment, so no claims are made in that direction
 
+**Performance Update (Revised Streaming Results)**
+Background
+Earlier versions of RDT-PRNG_STREAM reported substantially lower streaming throughput (≈ 15 MiB/s). Those measurements were obtained using an unbuffered reference implementation, where each 64-bit output was written individually to stdout.
+
+Subsequent profiling identified output I/O overhead—rather than the core nonlinear mixing function—as the dominant performance bottleneck in that configuration.
+
+Implementation Changes
+
+The streaming implementation was revised to improve throughput while preserving identical generator logic and output behavior. Key changes include:
+
+introduction of buffered output for stdout
+
+aggressive inlining of core mixing operations
+
+reduced function call overhead
+
+improved instruction-level parallelism
+
+compilation with -O3 -march=native
+
+No changes were made to:
+
+the RDT-CORE mixing primitive
+
+the PRNG state transition logic
+
+the statistical properties of the generator
+
+The update is purely an implementation-level optimization.
+
+Revised Benchmark Methodology
+
+Updated benchmarks were conducted using the same stream-based testing model, with improved buffering:
+
+platform: x86-64 Linux (Google Colab VM)
+
+compiler: GCC
+
+flags: -O3 -march=native -std=c11
+
+output size: 256 MiB
+
+timing method: shell builtin time
+
+identical I/O paths for all generators
+
+Updated Comparative Streaming Results
+Generator	State size	Time (256 MiB)	Throughput
+SplitMix64	64-bit	1.708 s	~150 MiB/s
+xoshiro256**	256-bit	1.641 s	~156 MiB/s
+PCG64 (XSL RR)	128-bit	1.804 s	~142 MiB/s
+RDT-PRNG_STREAM	256-bit	1.102 s	~232 MiB/s
+Interpretation
+
+The revised results demonstrate that, when I/O overhead is amortized appropriately, RDT-PRNG_STREAM achieves substantially higher sustained streaming throughput than previously reported.
+
+This does not imply that the underlying algorithm is intrinsically faster per step than minimal ARX generators. Rather, it reflects:
+
+effective overlap of computation and I/O
+
+deeper arithmetic pipelines within the nonlinear mixing core
+
+implementation-level efficiency under pipe-based workloads
+
+The original lower throughput measurements remain valid for the unbuffered reference implementation and are retained for historical accuracy.
+
+Scope and Limitations
+
+Results are empirical and environment-dependent
+
+No claims are made regarding cryptographic security
+
+No claims are made regarding per-output latency or cycle-optimality
+
+Results apply specifically to sustained streaming workloads
 Acknowledgement (SmokeRand):
 External statistical testing of RDT-PRNG_STREAM was performed using the **SmokeRand** test suite by GitHub user **`alvoskov`**.
 The RDT author is solely responsible for interpreting these results; this use and mention do **not** imply endorsement or validation of RDT by the SmokeRand author.
@@ -258,7 +333,7 @@ These results support the statistical quality and stability of RDT-PRNG_STREAM f
 
 All results are empirical and should not be interpreted as evidence of resistance to cryptanalytic attack.
 
-DOCUMENTATION
+**DOCUMENTATION**
 Documentation in docs/ includes:
 
 * architecture overview
