@@ -10,6 +10,7 @@ static inline uint32_t popcount64(uint64_t x) {
     return (uint32_t)__builtin_popcountll(x);
 }
 
+/* Fast depth surrogate (deterministic, structured by design) */
 static inline uint32_t rdt_depth_fast(uint64_t x) {
     uint32_t bl = bit_length(x);
     uint32_t mid = bl ? (uint32_t)(x >> (bl >> 1)) : 0u;
