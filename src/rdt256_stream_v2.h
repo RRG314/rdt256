@@ -21,6 +21,7 @@
 #define RDT_PRNG_STREAM_V2_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

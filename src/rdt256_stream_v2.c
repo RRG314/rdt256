@@ -19,7 +19,7 @@
  *   - TestU01 BigCrush: 160/160 tests passed
  */
 
-#include "rdt_prng_stream_v2.h"
+#include "rdt256_stream_v2.h"
 #include <stdint.h>
 #include <string.h>
 

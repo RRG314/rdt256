@@ -41,7 +41,7 @@ static inline uint32_t scalar_field(uint64_t x) {
 /* Prime table for epsilon channel */
 static const uint64_t P[7] = {3,5,7,11,13,17,19};
 
-uint64_t rdt_mix(uint64_t x, uint64_t K[4])
+uint64_t rdt_mix(uint64_t x, const uint64_t K[4])
 {
     uint32_t d = rdt_depth_fast(x);
     uint32_t g = scalar_field(x);
