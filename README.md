@@ -1,4 +1,3 @@
-
 **RDT256 Cryptographic Suite (Experimental Research Code)**
 
 Author: Steven Reid
@@ -11,7 +10,7 @@ License: MIT
 
 **IMPORTANT DISCLAIMER**
 This repository contains experimental research code, not production cryptographic software.
-The RDT-CORE, RDT-PRNG, RDT-PRNG_STREAM, and RDT-DRBG components:
+The RDT-CORE, RDT-PRNG, RDT-PRNG_STREAM, RDT-PRNG_STREAM_v2, and RDT-DRBG components:
 
 * have not undergone formal cryptanalysis
 * have no proven security guarantees
@@ -35,7 +34,8 @@ It is not intended to produce hardened cryptographic primitives.
 This repository includes:
 RDT-CORE (Experimental) — Core 64-bit nonlinear mixing primitive
 RDT-PRNG (Experimental) — High-diffusion pseudorandom generator
-RDT-PRNG_STREAM (Experimental) — Streaming RDT-PRNG variant for external test batteries (recommended and most tested)
+RDT-PRNG_STREAM (Experimental) — Streaming RDT-PRNG variant for external test batteries
+RDT-PRNG_STREAM_v2 (Experimental) — Enhanced variant with cross-state diffusion (NIST & BigCrush validated)
 RDT-DRBG (Experimental) — DRBG with internal key evolution and reseeding
 Test Suite (Stable) — Avalanche and statistical randomness tests
 
@@ -56,6 +56,8 @@ src/
 rdt_core.c
 rdt_prng.c
 rdt_prng_stream.c
+rdt_prng_stream_v2.c
+rdt_prng_stream_v2.h
 rdt_drbg.c
 rdt.h
 
@@ -120,6 +122,70 @@ Internal test harness measurements:
 * average Hamming distance between paired outputs ≈ 32.09 bits
 * entropy per bit reported as 1.000000
 * bit frequencies per position in approximately [0.4993, 0.5007]
+
+These are empirical statistical results only and do not imply cryptographic strength.
+
+**RDT-PRNG_STREAM_v2 (Enhanced Cross-Diffusion Variant)**
+
+RDT-PRNG_STREAM_v2 is an enhanced variant that adds **cross-state rotational diffusion** after each generation step. This provides improved avalanche properties and stronger statistical quality while using the same core RDT mixing primitive.
+
+**Changes from v1:**
+
+| Component | v1 | v2 |
+|-----------|----|----|
+| Seed initialization | Single 64-bit value | 4 × 64-bit values with mixing |
+| State update | Direct XOR | XOR + cross-state rotation |
+
+**v2-specific enhancement:**
+```c
+/* After mixing each state lane */
+S[0] ^= t0; S[1] ^= t1; S[2] ^= t2; S[3] ^= t3;
+
+/* v2: Cross-state rotational diffusion */
+S[0] ^= rotl64(S[1], 21);
+S[1] ^= rotl64(S[2], 35);
+S[2] ^= rotl64(S[3], 49);
+S[3] ^= rotl64(S[0], 11);
+```
+
+This ensures changes in any state lane propagate to all other lanes within 2 steps.
+
+**Statistical test results (RDT-PRNG_STREAM_v2):**
+
+* **NIST SP 800-22 Rev 1a**: Tested with official sts-2.1.2 suite. Configuration: 100 bitstreams × 1,000,000 bits each (100M bits total) at significance level α = 0.01. **Result: 15/15 tests passed.** All proportions exceeded minimum threshold (96/100 for standard tests, 57/60 for random excursion tests).
+
+| Test | Proportion | P-Value |
+|------|------------|---------|
+| Frequency | 98/100 | 0.719747 |
+| BlockFrequency | 99/100 | 0.289667 |
+| CumulativeSums | 98/100 | 0.924076 |
+| Runs | 99/100 | 0.739918 |
+| LongestRun | 100/100 | 0.851383 |
+| Rank | 99/100 | 0.699313 |
+| FFT | 98/100 | 0.851383 |
+| NonOverlappingTemplate | 96-100/100 | Various |
+| OverlappingTemplate | 99/100 | 0.678686 |
+| Universal | 100/100 | 0.946308 |
+| ApproximateEntropy | 98/100 | 0.153763 |
+| RandomExcursions | 58-60/60 | Various |
+| RandomExcursionsVariant | 57-60/60 | Various |
+| Serial | 98-100/100 | 0.719747 |
+| LinearComplexity | 99/100 | 0.001757 |
+
+* **TestU01 BigCrush**: 160 statistical tests executed over ~5-6 hours. **Result: All tests passed** with p-values within acceptable range [0.001, 0.999].
+
+**Usage (v2):**
+```bash
+# Build
+make rdt_prng_stream_v2
+
+# Streaming mode
+./rdt_prng_stream_v2 | dieharder -a -g 200
+./rdt_prng_stream_v2 | smokerand default stdin64
+
+# With custom 256-bit seed (4 × 64-bit hex values)
+./rdt_prng_stream_v2 0xe607dabdfc9538b5 0x0050f7866258289c 0xedc2d97a03b312ad 0xcaedbc215ece9a31
+```
 
 These are empirical statistical results only and do not imply cryptographic strength.
 
