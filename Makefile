@@ -61,8 +61,12 @@ benchmark-v2: rdt_prng_stream_v2
 	@echo "Benchmarking v2: 256 MiB output..."
 	@time ./rdt_prng_stream_v2 | head -c 268435456 > /dev/null
 
+# ---------- debug build ----------
+debug: CFLAGS += -g -O0 -fsanitize=address -fsanitize=undefined -DDEBUG
+debug: clean all
+
 # ---------- housekeeping ----------
 clean:
 	rm -f *.o rdt_prng_stream rdt_prng_stream_v2 rdt_seed_extractor
 
-.PHONY: all clean test-v2-dieharder test-v2-smokerand test-v2-ent benchmark-v2
+.PHONY: all clean debug test-v2-dieharder test-v2-smokerand test-v2-ent benchmark-v2

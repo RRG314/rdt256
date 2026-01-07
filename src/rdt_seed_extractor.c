@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 
 /* ========================================================================== */
 /* SHA-256 Implementation (minimal, self-contained)                           */
@@ -271,12 +272,6 @@ static void entropy_precursor_layer(uint8_t *data, size_t len, size_t block_size
  * recursive_entropy_mixer: Divide-and-conquer mixing
  */
 static void recursive_entropy_mixer_impl(uint8_t *data, size_t len, int depth) {
-    /* Ensure even length */
-    size_t work_len = len;
-    if (len % 2 != 0) {
-        work_len = len + 1;
-    }
-
     if (depth == 0 || len < 64) {
         mixer_a(data, len);
         mixer_b(data, len);
@@ -318,9 +313,15 @@ static void buffer_append(byte_buffer *buf, const void *data, size_t len) {
     if (!buf->data) return;
 
     while (buf->len + len > buf->capacity) {
-        buf->capacity *= 2;
-        buf->data = (uint8_t *)realloc(buf->data, buf->capacity);
-        if (!buf->data) return;
+        /* Check for overflow before doubling */
+        if (buf->capacity > SIZE_MAX / 2) return;
+
+        size_t new_capacity = buf->capacity * 2;
+        uint8_t *new_data = (uint8_t *)realloc(buf->data, new_capacity);
+        if (!new_data) return;  /* Keep original buffer, will be freed later */
+
+        buf->data = new_data;
+        buf->capacity = new_capacity;
     }
 
     memcpy(buf->data + buf->len, data, len);
@@ -479,7 +480,7 @@ static void extract_structure_fingerprint(const uint8_t *data, size_t len, byte_
 /* ========================================================================== */
 
 int rdt_seed_extract(const uint8_t *data, size_t data_len, uint8_t seed_out[32]) {
-    if (!data || !seed_out) return -1;
+    if (!data || !seed_out || data_len == 0) return -1;
 
     byte_buffer pool;
     buffer_init(&pool);
@@ -550,7 +551,7 @@ int rdt_seed_extract_file(const char *filepath, uint8_t seed_out[32]) {
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    if (size <= 0) {
+    if (size <= 0 || size > 100 * 1024 * 1024) {  /* Max 100 MB */
         fclose(f);
         return -1;
     }
@@ -599,13 +600,22 @@ int rdt_seed_extract_files(const char **filepaths, size_t num_files, uint8_t see
         long size = ftell(f);
         fseek(f, 0, SEEK_SET);
 
+        if (size < 0 || size > 100 * 1024 * 1024) {  /* Max 100 MB per file */
+            fclose(f);
+            buffer_free(&combined);
+            return -1;
+        }
+
         if (size > 0) {
             uint8_t *data = (uint8_t *)malloc((size_t)size);
-            if (data) {
-                size_t bytes_read = fread(data, 1, (size_t)size, f);
-                buffer_append(&combined, data, bytes_read);
-                free(data);
+            if (!data) {
+                fclose(f);
+                buffer_free(&combined);
+                return -1;
             }
+            size_t bytes_read = fread(data, 1, (size_t)size, f);
+            buffer_append(&combined, data, bytes_read);
+            free(data);
         }
 
         fclose(f);
