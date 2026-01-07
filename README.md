@@ -37,6 +37,7 @@ RDT-PRNG (Experimental) — High-diffusion pseudorandom generator
 RDT-PRNG_STREAM (Experimental) — Streaming RDT-PRNG variant for external test batteries
 RDT-PRNG_STREAM_v2 (Experimental) — Enhanced variant with cross-state diffusion (NIST & BigCrush validated)
 RDT-DRBG (Experimental) — DRBG with internal key evolution and reseeding
+RDT Seed Extractor (Experimental) — High-quality seed extraction from sensor data
 Test Suite (Stable) — Avalanche and statistical randomness tests
 
 **KEY FEATURES (Experimental Only)**
@@ -284,6 +285,136 @@ Results apply specifically to sustained streaming workloads
 Acknowledgement (SmokeRand):
 External statistical testing of RDT-PRNG_STREAM was performed using the **SmokeRand** test suite by GitHub user **`alvoskov`**.
 The RDT author is solely responsible for interpreting these results; this use and mention do **not** imply endorsement or validation of RDT by the SmokeRand author.
+
+---
+
+## RDT Seed Extractor
+
+The RDT Seed Extractor converts raw sensor data (CSV files, measurements) into high-quality 256-bit seeds for RDT256 or any other PRNG.
+
+### Validated Performance
+
+| Metric | Raw Input | After Extraction | Improvement |
+|--------|-----------|------------------|-------------|
+| Shannon Entropy | 3.69 bits/byte | 7.999 bits/byte | +4.31 bits |
+| **Min-Entropy** | 2.80 bits/byte | **7.816 bits/byte** | +5.02 bits |
+| Collision Entropy | 3.55 bits/byte | 7.997 bits/byte | +4.45 bits |
+
+### Statistical Test Results
+
+| Test | Result | Value |
+|------|--------|-------|
+| Chi-Square Uniformity | ✅ PASS | χ² = 254.56 (p = 0.496) |
+| Runs Test | ✅ PASS | p = 0.059 |
+| Serial Correlation | ✅ PASS | \|r\| < 0.008 |
+| Input Avalanche | ✅ PASS | **49.1%** (ideal: 50%) |
+| Seed Uniqueness | ✅ PASS | 100% |
+
+### Usage (C)
+
+```c
+#include "rdt_seed_extractor.h"
+
+// From raw bytes
+uint8_t seed[32];
+rdt_seed_extract(csv_data, csv_len, seed);
+
+// From file
+rdt_seed_extract_file("sensor_data.csv", seed);
+
+// From multiple files
+const char *files[] = {"sensor1.csv", "sensor2.csv", "sensor3.csv"};
+rdt_seed_extract_files(files, 3, seed);
+
+// Get as uint64_t for PRNG init
+uint64_t seed_u64[4];
+rdt_seed_extract_u64(csv_data, csv_len, seed_u64);
+rdt_prng_v2_init(seed_u64);
+```
+
+### Usage (Python)
+
+```python
+from rdt_seed_extractor import extract_seed, extract_seed_integers
+
+# Get 32-byte seed
+seed = extract_seed(['sensor1.csv', 'sensor2.csv'])
+
+# Get as 4 x uint64 for PRNG init
+s0, s1, s2, s3 = extract_seed_integers(['sensor_data.csv'])
+```
+
+### Command Line
+
+```bash
+# Build CLI tool
+make rdt_seed_extractor
+
+# Get hex output
+./rdt_seed_extractor sensor1.csv sensor2.csv
+# Output: 683d5f2b0f90a422d3910ee7630033ac60b1a588a78f24e9652bae5f39059f42
+
+# Get C format
+./rdt_seed_extractor -c sensor_data.csv
+# Output:
+# uint64_t seed[4] = {
+#     0x22a4900f2b5f3d68ULL,
+#     0xac330063e70e91d3ULL,
+#     0xe9248fa788a5b160ULL,
+#     0x429f05395fae2b65ULL
+# };
+
+# Use with RDT-PRNG_STREAM_v2
+./rdt_seed_extractor -u sensor_data.csv | xargs ./rdt_prng_stream_v2
+```
+
+### Pipeline
+
+```
+CSV Sensor Data
+      │
+      ▼
+┌─────────────────────────────┐
+│ 1. Numeric Extraction       │
+│    • Parse floats           │
+│    • Record positions       │
+│    • Record line numbers    │
+└─────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────┐
+│ 2. Structure Fingerprint    │
+│    • File length            │
+│    • Delimiter counts       │
+│    • Sampled bytes          │
+└─────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────┐
+│ 3. Entropy Precursor Layer  │
+│    • Block-wise flip+shift  │
+└─────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────┐
+│ 4. Recursive Entropy Mixer  │
+│    • mixer_a + mixer_b      │
+│    • Divide-and-conquer     │
+└─────────────────────────────┘
+      │
+      ▼
+┌─────────────────────────────┐
+│ 5. SHA-256 Finalization     │
+│    • Domain separation      │
+└─────────────────────────────┘
+      │
+      ▼
+   32-byte Seed → Any PRNG
+```
+
+**Full validation results:** See `docs/seed_extractor.md`
+
+---
 
 RDT-DRBG (Experimental Only)
 Adds evolving key material, reseeding, and forward/backward mixing concepts.
