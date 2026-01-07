@@ -8,7 +8,10 @@
 *.dylib
 *.out
 rdt_prng
+rdt_prng_stream
+rdt_prng_stream_v2
 rdt_drbg
+rdt_seed_extractor
 
 # ============================
 # Python Cache / Env
