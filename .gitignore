@@ -10,8 +10,10 @@
 rdt_prng
 rdt_prng_stream
 rdt_prng_stream_v2
+rdt_prng_stream_v3
 rdt_drbg
 rdt_seed_extractor
+splitmix64_stream
 
 # ============================
 # Python Cache / Env
