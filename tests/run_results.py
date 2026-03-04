@@ -1,69 +1,113 @@
 #!/usr/bin/env python3
-import numpy as np
-import math
+"""Internal statistical smoke test using actual RDT stream output."""
+
+from __future__ import annotations
+
 import subprocess
-import shutil
+from pathlib import Path
+import numpy as np
 
-def collect_drbg_output(words=500000):
-    rng = np.random.default_rng(12345)
-    return rng.integers(0, 2**64, size=words, dtype=np.uint64)
 
-def shannon_entropy_bytes(data):
+ROOT = Path(__file__).resolve().parents[1]
+
+
+
+def collect_stream_bytes(n_bytes: int) -> bytes:
+    proc = subprocess.Popen(["./rdt_prng_stream_v2"], cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    try:
+        out = bytearray()
+        assert proc.stdout is not None
+        while len(out) < n_bytes:
+            chunk = proc.stdout.read(min(65536, n_bytes - len(out)))
+            if not chunk:
+                break
+            out.extend(chunk)
+    finally:
+        proc.kill()
+        proc.wait(timeout=5)
+    return bytes(out)
+
+
+
+def shannon_entropy_bytes(data: np.ndarray) -> float:
     counts = np.bincount(data, minlength=256)
     total = len(data)
-    probs = counts / total
+    probs = counts / max(1, total)
     probs = probs[probs > 0]
-    return -np.sum(probs * np.log2(probs))
+    return float(-np.sum(probs * np.log2(probs)))
 
-def runs_test(bits):
-    b = bits * 2 - 1
-    runs = np.sum(b[:-1] != b[1:]) + 1
-    expected = 2 * len(bits) * bits.mean() * (1 - bits.mean())
+
+
+def runs_test(bits: np.ndarray) -> tuple[int, float]:
+    b = bits.astype(np.int8) * 2 - 1
+    runs = int(np.sum(b[:-1] != b[1:]) + 1)
+    p = float(bits.mean())
+    expected = float(2 * len(bits) * p * (1 - p))
     return runs, expected
 
-def chi_square(data):
+
+
+def chi_square(data: np.ndarray) -> float:
     counts = np.bincount(data, minlength=256)
     expected = len(data) / 256
-    return np.sum((counts - expected)**2 / expected)
+    return float(np.sum((counts - expected) ** 2 / max(1e-12, expected)))
 
-def serial_chi_square(data):
+
+
+def serial_chi_square(data: np.ndarray) -> float:
     pairs = (data[:-1].astype(np.uint16) << 8) | data[1:]
     counts = np.bincount(pairs, minlength=65536)
     expected = len(pairs) / 65536
-    return np.sum((counts - expected)**2 / expected)
+    return float(np.sum((counts - expected) ** 2 / max(1e-12, expected)))
 
-def autocorr(arr, lag):
-    return np.corrcoef(arr[:-lag], arr[lag:])[0,1]
 
-def avalanche_test(n_seeds=20000):
-    flips = []
-    rng = np.random.default_rng(1234)
-    for _ in range(n_seeds):
-        out1 = rng.integers(0, 2**64, dtype=np.uint64)
-        out2 = rng.integers(0, 2**64, dtype=np.uint64)
-        flips.append(bin(int(out1 ^ out2)).count("1"))
-    flips = np.array(flips)
-    return flips.mean(), flips.min(), flips.max()
 
-def main():
-    print("Collecting DRBG output (Colab fallback mode)...")
-    arr = collect_drbg_output(words=500000)
-    data_bytes = arr.view(np.uint8)
-    bits = np.unpackbits(data_bytes)
+def autocorr(arr: np.ndarray, lag: int) -> float:
+    if lag <= 0 or lag >= len(arr):
+        return 0.0
+    a = arr[:-lag].astype(np.float64)
+    b = arr[lag:].astype(np.float64)
+    if np.std(a) == 0.0 or np.std(b) == 0.0:
+        return 0.0
+    return float(np.corrcoef(a, b)[0, 1])
 
-    entropy = shannon_entropy_bytes(data_bytes)
-    mono = bits.mean()
+
+
+def avalanche_test(words: np.ndarray, n_pairs: int = 20000) -> tuple[float, int, int]:
+    n = min(n_pairs * 2, len(words))
+    x = words[:n:2]
+    y = words[1:n:2]
+    if len(x) == 0 or len(y) == 0:
+        return 0.0, 0, 0
+    flips = np.bitwise_xor(x, y)
+    counts = np.array([int(v).bit_count() for v in flips], dtype=np.int32)
+    return float(np.mean(counts)), int(np.min(counts)), int(np.max(counts))
+
+
+
+def main() -> None:
+    # Build binary if needed.
+    subprocess.run(["make", "rdt_prng_stream_v2"], cwd=ROOT, check=True)
+
+    print("Collecting RDT stream output...")
+    blob = collect_stream_bytes(8 * 500000)
+    arr = np.frombuffer(blob, dtype=np.uint8)
+    words = np.frombuffer(blob[: (len(blob) // 8) * 8], dtype=np.uint64)
+    bits = np.unpackbits(arr)
+
+    entropy = shannon_entropy_bytes(arr)
+    mono = float(bits.mean())
     runs, runs_exp = runs_test(bits)
-    chi = chi_square(data_bytes)
-    chi_ser = serial_chi_square(data_bytes)
-    ac1  = autocorr(arr, 1)
-    ac2  = autocorr(arr, 2)
-    ac8  = autocorr(arr, 8)
-    ac64 = autocorr(arr, 64)
-    aval_mean, aval_min, aval_max = avalanche_test()
+    chi = chi_square(arr)
+    chi_ser = serial_chi_square(arr)
+    ac1 = autocorr(words, 1)
+    ac2 = autocorr(words, 2)
+    ac8 = autocorr(words, 8)
+    ac64 = autocorr(words, 64)
+    aval_mean, aval_min, aval_max = avalanche_test(words)
 
     report = []
-    report.append("RDT SUITE RESULTS (COLAB TEST)\n")
+    report.append("RDT SUITE RESULTS (STREAM TEST)\n")
     report.append("=== Statistical Tests ===\n")
     report.append(f"Entropy (bytes): {entropy}\n")
     report.append(f"Monobit frequency: {mono}\n")
@@ -80,12 +124,13 @@ def main():
     report.append(f"Avalanche min:  {aval_min}\n")
     report.append(f"Avalanche max:  {aval_max}\n")
 
-    print("\n".join(report))
+    text = "\n".join(report)
+    print(text)
 
-    with open("RDT_RESULTS.txt", "w") as f:
-        f.write("\n".join(report))
+    out_path = ROOT / "RDT_RESULTS.txt"
+    out_path.write_text(text, encoding="utf-8")
+    print(f"\nResults saved to {out_path}")
 
-    print("\nResults saved to RDT_RESULTS.txt")
 
 if __name__ == "__main__":
     main()

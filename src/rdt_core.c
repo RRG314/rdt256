@@ -2,22 +2,23 @@
 #include <stdint.h>
 
 static inline uint32_t bit_length(uint64_t x) {
-    return x ? 64 - __builtin_clzll(x) : 0;
+    return x ? (uint32_t)(64u - (uint32_t)__builtin_clzll(x)) : 0u;
 }
 
 static inline uint32_t popcount64(uint64_t x) {
-    return __builtin_popcountll(x);
+    return (uint32_t)__builtin_popcountll(x);
 }
 
 static inline uint64_t rotl64(uint64_t x, uint32_t r) {
-    return (x << r) | (x >> (64 - r));
+    r &= 63u;
+    return r ? ((x << r) | (x >> (64u - r))) : x;
 }
 
 static inline uint32_t rdt_depth_fast(uint64_t x) {
     uint32_t bl = bit_length(x);
     uint32_t pc = popcount64(x);
-    uint32_t mid = (bl ? (x >> (bl >> 1)) : 0);
-    return (bl ^ (pc << 1) ^ mid) & 63;
+    uint32_t mid = (bl ? (uint32_t)(x >> (bl >> 1)) : 0u);
+    return (bl ^ (pc << 1) ^ mid) & 63u;
 }
 
 static inline uint32_t isqrt32(uint32_t x) {

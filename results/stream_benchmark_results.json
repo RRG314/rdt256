@@ -1,0 +1,49 @@
+{
+  "sample_mib": 64,
+  "results": [
+    {
+      "name": "rdt_prng_stream_v2",
+      "bytes": 67108864,
+      "elapsed_s": 1.3238346250145696,
+      "throughput_mib_s": 48.34440706617387,
+      "entropy_bits_per_byte": 7.999997007024269,
+      "monobit_mean": 0.500005416572094,
+      "runs": 268440147,
+      "runs_expected": 268435455.96849722,
+      "lag1_corr_u64": -0.00023924085568763836,
+      "quality_proxy": 0.000244657427781602
+    },
+    {
+      "name": "rdt_prng_stream_v3",
+      "bytes": 67108864,
+      "elapsed_s": 1.3410510840185452,
+      "throughput_mib_s": 47.723759939270856,
+      "entropy_bits_per_byte": 7.999997205081494,
+      "monobit_mean": 0.5000159218907356,
+      "runs": 268437980,
+      "runs_expected": 268435455.72779936,
+      "lag1_corr_u64": 0.00018894291443256235,
+      "quality_proxy": 0.00020486480516818857
+    },
+    {
+      "name": "splitmix64",
+      "bytes": 67108864,
+      "elapsed_s": 0.04814987498684786,
+      "throughput_mib_s": 1329.183097930817,
+      "entropy_bits_per_byte": 7.999997268702014,
+      "monobit_mean": 0.49998641572892666,
+      "runs": 268420346,
+      "runs_expected": 268435455.80185983,
+      "lag1_corr_u64": -0.00014570587421651056,
+      "quality_proxy": 0.00015929014528985193
+    }
+  ],
+  "findings": {
+    "v3_speedup_vs_v2": 0.9871619663045309,
+    "v2_speed_ratio_vs_splitmix": 0.03637151807108682,
+    "v3_speed_ratio_vs_splitmix": 0.035904579296534844,
+    "entropy_delta_v3_vs_v2": 1.9805722484278476e-07,
+    "lag1_abs_delta_v3_vs_v2": -5.029794125507601e-05,
+    "quality_proxy_delta_v3_vs_v2": -3.979262261341341e-05
+  }
+}

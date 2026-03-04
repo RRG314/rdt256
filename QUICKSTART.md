@@ -10,7 +10,9 @@ make all
 This builds:
 - `rdt_prng_stream` - Original PRNG streaming generator
 - `rdt_prng_stream_v2` - Enhanced PRNG with cross-state diffusion
+- `rdt_prng_stream_v3` - Same v2 core with output-stage scrambling variant
 - `rdt_seed_extractor` - High-quality seed extraction from sensor data
+- `splitmix64_stream` (via `make splitmix64_stream`) - conventional baseline stream generator for fair benchmarking
 
 ## Using the Seed Extractor
 
@@ -157,6 +159,20 @@ your_prng_init(seed, 32);
 # Basic entropy test
 ./rdt_prng_stream_v2 <seed_values> | head -c 10000000 | ent
 ```
+
+### Run Honest Local Benchmark (RDT v2/v3 vs Conventional Baseline)
+
+```bash
+make benchmark-honest
+```
+
+Outputs:
+- `results/stream_benchmark_results.json`
+- `results/stream_benchmark_report.md`
+- Includes side-by-side throughput/statistical summary for:
+  - `rdt_prng_stream_v2`
+  - `rdt_prng_stream_v3`
+  - `splitmix64_stream`
 
 ## What Makes the Seed Extractor Special?
 

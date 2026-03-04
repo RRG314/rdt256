@@ -20,6 +20,32 @@ The RDT-CORE, RDT-PRNG, RDT-PRNG_STREAM, RDT-PRNG_STREAM_v2, and RDT-DRBG compon
 All components are intended solely for research, experimentation, benchmarking, and mathematical exploration.
 Nothing here should be considered secure.
 
+## REPRODUCIBILITY STATUS (IMPORTANT)
+
+Historical benchmark numbers and third-party battery summaries in this document are research notes and may depend on prior environments.
+For current local, reproducible measurements in this repository, use:
+
+```bash
+make benchmark-honest
+python3 tests/run_results.py
+```
+
+These commands now test the actual stream binaries (`rdt_prng_stream_v2`, `rdt_prng_stream_v3`) and produce:
+- `results/stream_benchmark_results.json`
+- `results/stream_benchmark_report.md`
+- `RDT_RESULTS.txt`
+
+Treat those generated files as the canonical local evidence for speed/statistical behavior.
+
+## UPGRADED VARIANT (v3)
+
+`rdt_prng_stream_v3` keeps the same `v2` state transition and adds a lightweight
+output scrambler (known method: SplitMix-style finalizer) for a quality-tuned variant.
+
+- It is an output-stage variant only; core state update remains RDT v2.
+- It is evaluated side-by-side with `v2` and `splitmix64_stream` in `make benchmark-honest`.
+- Any performance claims should come from generated files in `results/`, not this README text.
+
 **OVERVIEW**
 The RDT Cryptographic Suite is a set of experimental randomness primitives based on a nonlinear transformation combining:
 
@@ -35,7 +61,8 @@ This repository includes:
 RDT-CORE (Experimental) — Core 64-bit nonlinear mixing primitive
 RDT-PRNG (Experimental) — High-diffusion pseudorandom generator
 RDT-PRNG_STREAM (Experimental) — Streaming RDT-PRNG variant for external test batteries
-RDT-PRNG_STREAM_v2 (Experimental) — Enhanced variant with cross-state diffusion (NIST & BigCrush validated)
+RDT-PRNG_STREAM_v2 (Experimental) — Enhanced variant with cross-state diffusion
+RDT-PRNG_STREAM_v3 (Experimental) — Same v2 generator core with output-stage scrambling variant
 RDT-DRBG (Experimental) — DRBG with internal key evolution and reseeding
 RDT Seed Extractor (Experimental) — High-quality seed extraction from sensor data
 Test Suite (Stable) — Avalanche and statistical randomness tests

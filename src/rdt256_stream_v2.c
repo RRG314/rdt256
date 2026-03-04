@@ -28,7 +28,7 @@
  * ============================================================================ */
 
 static inline uint32_t bit_length(uint64_t x) {
-    return x ? (uint32_t)(64u - __builtin_clzll(x)) : 0u;
+    return x ? (uint32_t)(64u - (uint32_t)__builtin_clzll(x)) : 0u;
 }
 
 static inline uint32_t popcount64(uint64_t x) {
@@ -239,7 +239,7 @@ void rdt_prng_v2_fill(uint8_t *buf, size_t len) {
  *   ./rdt_prng_stream_v2 | smokerand default stdin64
  * ============================================================================ */
 
-#ifdef RDT_PRNG_V2_MAIN
+#if defined(RDT_PRNG_V2_MAIN) || defined(RDT_PRNG_V3_MAIN)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -263,18 +263,69 @@ int main(int argc, char **argv) {
     
     rdt_prng_v2_init(seed);
     
-    /* Buffered output for maximum throughput */
+    /* v3 uses larger stdio/write chunks and an output scrambler. */
+#ifdef RDT_PRNG_V3_MAIN
+    static char io_buf[1 << 20];
+    setvbuf(stdout, io_buf, _IOFBF, sizeof(io_buf));
+    uint64_t buf[8192];
+    uint64_t stream_ctr = 0x9E3779B97F4A7C15ULL;
+#else
     uint64_t buf[1024];
+#endif
     for (;;) {
+        /* Small unroll to reduce loop overhead without changing the stream core. */
+#ifdef RDT_PRNG_V3_MAIN
+        for (size_t i = 0; i < 8192; i += 4) {
+            uint64_t x0 = rdt_prng_v2_next() + stream_ctr;
+            stream_ctr += 0x9E3779B97F4A7C15ULL;
+            x0 ^= x0 >> 30;
+            x0 *= 0xBF58476D1CE4E5B9ULL;
+            x0 ^= x0 >> 27;
+            x0 *= 0x94D049BB133111EBULL;
+            x0 ^= x0 >> 31;
+            buf[i + 0] = x0;
+
+            uint64_t x1 = rdt_prng_v2_next() + stream_ctr;
+            stream_ctr += 0x9E3779B97F4A7C15ULL;
+            x1 ^= x1 >> 30;
+            x1 *= 0xBF58476D1CE4E5B9ULL;
+            x1 ^= x1 >> 27;
+            x1 *= 0x94D049BB133111EBULL;
+            x1 ^= x1 >> 31;
+            buf[i + 1] = x1;
+
+            uint64_t x2 = rdt_prng_v2_next() + stream_ctr;
+            stream_ctr += 0x9E3779B97F4A7C15ULL;
+            x2 ^= x2 >> 30;
+            x2 *= 0xBF58476D1CE4E5B9ULL;
+            x2 ^= x2 >> 27;
+            x2 *= 0x94D049BB133111EBULL;
+            x2 ^= x2 >> 31;
+            buf[i + 2] = x2;
+
+            uint64_t x3 = rdt_prng_v2_next() + stream_ctr;
+            stream_ctr += 0x9E3779B97F4A7C15ULL;
+            x3 ^= x3 >> 30;
+            x3 *= 0xBF58476D1CE4E5B9ULL;
+            x3 ^= x3 >> 27;
+            x3 *= 0x94D049BB133111EBULL;
+            x3 ^= x3 >> 31;
+            buf[i + 3] = x3;
+        }
+        if (fwrite(buf, sizeof(uint64_t), 8192, stdout) != 8192) {
+            break;
+        }
+#else
         for (int i = 0; i < 1024; i++) {
             buf[i] = rdt_prng_v2_next();
         }
         if (fwrite(buf, sizeof(uint64_t), 1024, stdout) != 1024) {
             break;
         }
+#endif
     }
     
     return 0;
 }
 
-#endif /* RDT_PRNG_V2_MAIN */
+#endif /* RDT_PRNG_V2_MAIN || RDT_PRNG_V3_MAIN */
