@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+      - "steven/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps
+        run: python -m pip install --upgrade pip numpy
+
+      - name: Build
+        run: make clean all
+
+      - name: DRBG tests
+        run: make test-drbg-v2-kat test-drbg-v2-system
+
+      - name: Seed extractor tests
+        run: make test-seed-extractor validate-seed-extractor
+
+      - name: Stream smoke results
+        run: python3 tests/run_results.py

@@ -8,6 +8,7 @@ This document describes the pseudorandom generators included in the RDT suite:
 1. **RDT-PRNG** — a 256-bit state deterministic generator
 2. **RDT-PRNG_STREAM** — a streaming reference implementation of RDT-PRNG for external testing
 3. **RDT-DRBG** — a structured deterministic random bit generator with reseeding
+4. **RDT-DRBG_v2** — a context-based DRBG path using an HMAC-SHA256 core with RDT-conditioned convenience seeding
 
 All generators rely on the shared **RDT-CORE** nonlinear mixing primitive.
 
@@ -270,11 +271,74 @@ It is **not intended for production cryptographic use** without further analysis
 
 ---
 
+## RDT-DRBG_v2
+
+### Purpose
+
+RDT-DRBG_v2 is a newer DRBG path added alongside the original custom RDT-DRBG.
+Its goal is to keep the repository's RDT-based seeding story while moving the actual
+DRBG state machine onto a more disciplined HMAC-SHA256 construction.
+
+### State
+
+The DRBG maintains:
+
+```
+uint8_t K[32];
+uint8_t V[32];
+uint64_t reseed_counter;
+int seeded;
+```
+
+This matches the standard HMAC-DRBG style key/value state layout.
+
+### Instantiate / Reseed / Generate Model
+
+RDT-DRBG_v2 follows the familiar instantiate/reseed/generate flow:
+
+1. Instantiate from `entropy || nonce || personalization`
+2. Optional reseed from `entropy || additional_input`
+3. Optional pre-generate update with `additional_input`
+4. Block generation via repeated `HMAC(K, V)`
+5. Post-generate update and reseed-counter increment
+
+### RDT Integration
+
+The actual state machine is HMAC-SHA256 based.
+RDT enters in the convenience `init_u64` path, which deterministically expands three
+64-bit inputs through the repository's `rdt_mix` primitive into instantiate material.
+There is also a separate `init_system` / `reseed_system` path that reads entropy from
+`/dev/urandom` so the DRBG can be integrated without pretending the deterministic
+`init_u64` wrapper is equivalent to real entropy collection.
+
+This means:
+
+* the DRBG core behavior is closer to standard HMAC-DRBG semantics
+* the repository still preserves an RDT-centered deterministic seeding path
+* the system-entropy path is the honest choice for local cryptographic-style use
+* the cryptographic discussion should focus on the HMAC-SHA256 core, not on claiming the RDT primitive itself has been cryptographically validated
+
+### Validation Status
+
+RDT-DRBG_v2 includes:
+
+* a built-in SHA-256 HMAC-DRBG known-answer test derived from the NIST validation vectors
+* throughput/statistical benchmarking through `make benchmark-honest`
+* an external-battery runner for Dieharder, PractRand, and BigCrush-style workflows when those tools are installed locally
+
+### Intended Use
+
+If someone wants a DRBG-style interface from this repository that is easier to justify technically than the original custom DRBG, `RDT-DRBG_v2` is the recommended path.
+It is still **experimental** and **not a certified module**, but it is the better integration surface.
+
+---
+
 ## Summary
 
 RDT-PRNG provides a simple deterministic generator with strong empirical statistical behavior.
 RDT-PRNG_STREAM exposes the same generator as a continuous stream for external evaluation and is the primary reference implementation used in testing.
 RDT-DRBG extends this design with key evolution and reseeding, enabling structured experimentation with DRBG-style mechanisms.
+RDT-DRBG_v2 adds a more standard-like HMAC-SHA256 DRBG core for users who want a stricter instantiate/reseed/generate interface inside the repo.
 
 All components are **experimental**, **non-standard**, and **not cryptographically validated**.
 

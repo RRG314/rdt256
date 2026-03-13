@@ -19,6 +19,7 @@
  */
 
 #include "rdt_seed_extractor.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -171,11 +172,8 @@ static void sha256(const uint8_t *data, size_t len, uint8_t hash[32]) {
  * mixer_a: Roll + Invert + XOR mixing
  * result[i] = roll(data,3)[i] XOR ~data[i] XOR data[len-1-i]
  */
-static void mixer_a(uint8_t *data, size_t len) {
+static void mixer_a_with_temp(uint8_t *data, size_t len, uint8_t *temp) {
     if (len == 0) return;
-
-    uint8_t *temp = (uint8_t *)malloc(len);
-    if (!temp) return;
 
     for (size_t i = 0; i < len; i++) {
         size_t roll_idx = (i + len - 3) % len;  /* roll by 3 */
@@ -186,33 +184,23 @@ static void mixer_a(uint8_t *data, size_t len) {
     }
 
     memcpy(data, temp, len);
-    free(temp);
 }
 
 /*
  * mixer_b: Half-swap + Reverse XOR mixing
  */
-static void mixer_b(uint8_t *data, size_t len) {
+static void mixer_b_with_temp(uint8_t *data, size_t len, uint8_t *temp, uint8_t *scratch) {
     if (len < 2) return;
 
     /* Ensure even length */
     size_t work_len = len;
     uint8_t *work = data;
-    uint8_t *allocated = NULL;
 
     if (len % 2 != 0) {
         work_len = len + 1;
-        allocated = (uint8_t *)malloc(work_len);
-        if (!allocated) return;
-        memcpy(allocated, data, len);
-        allocated[len] = 0;
-        work = allocated;
-    }
-
-    uint8_t *temp = (uint8_t *)malloc(work_len);
-    if (!temp) {
-        free(allocated);
-        return;
+        memcpy(scratch, data, len);
+        scratch[len] = 0;
+        work = scratch;
     }
 
     size_t half = work_len / 2;
@@ -231,23 +219,17 @@ static void mixer_b(uint8_t *data, size_t len) {
         temp[i] = (reversed ^ overlay) ^ work[i];
     }
 
-    if (allocated) {
-        memcpy(data, temp, len);
-        free(allocated);
-    } else {
-        memcpy(data, temp, len);
-    }
-    free(temp);
+    memcpy(data, temp, len);
 }
 
 /*
  * entropy_precursor_layer: Block-wise flip + shift
  */
-static void entropy_precursor_layer(uint8_t *data, size_t len, size_t block_size) {
-    if (len == 0 || block_size == 0) return;
+static int entropy_precursor_layer(uint8_t *data, size_t len, size_t block_size) {
+    if (len == 0 || block_size == 0) return 0;
 
     uint8_t *block_temp = (uint8_t *)malloc(block_size);
-    if (!block_temp) return;
+    if (!block_temp) return -1;
 
     for (size_t i = 0; i < len; i += block_size) {
         size_t chunk = (i + block_size <= len) ? block_size : (len - i);
@@ -266,31 +248,52 @@ static void entropy_precursor_layer(uint8_t *data, size_t len, size_t block_size
     }
 
     free(block_temp);
+    return 0;
 }
 
 /*
  * recursive_entropy_mixer: Divide-and-conquer mixing
  */
-static void recursive_entropy_mixer_impl(uint8_t *data, size_t len, int depth) {
+static void recursive_entropy_mixer_impl(uint8_t *data, size_t len, int depth,
+                                         uint8_t *temp, uint8_t *scratch) {
     if (depth == 0 || len < 64) {
-        mixer_a(data, len);
-        mixer_b(data, len);
+        mixer_a_with_temp(data, len, temp);
+        mixer_b_with_temp(data, len, temp, scratch);
         return;
     }
 
     size_t mid = len / 2;
 
     /* Recurse on halves */
-    recursive_entropy_mixer_impl(data, mid, depth - 1);
-    recursive_entropy_mixer_impl(data + mid, len - mid, depth - 1);
+    recursive_entropy_mixer_impl(data, mid, depth - 1, temp, scratch);
+    recursive_entropy_mixer_impl(data + mid, len - mid, depth - 1, temp, scratch);
 
     /* Combine */
-    mixer_b(data, len);
-    mixer_a(data, len);
+    mixer_b_with_temp(data, len, temp, scratch);
+    mixer_a_with_temp(data, len, temp);
 }
 
-static void recursive_entropy_mixer(uint8_t *data, size_t len, int max_depth) {
-    recursive_entropy_mixer_impl(data, len, max_depth);
+static int recursive_entropy_mixer(uint8_t *data, size_t len, int max_depth) {
+    uint8_t *temp;
+    uint8_t *scratch;
+
+    if (!data && len) return -1;
+    if (len == 0) return 0;
+    if (len == SIZE_MAX) return -1;
+
+    temp = (uint8_t *)malloc(len + 1);
+    scratch = (uint8_t *)malloc(len + 1);
+    if (!temp || !scratch) {
+        free(temp);
+        free(scratch);
+        return -1;
+    }
+
+    recursive_entropy_mixer_impl(data, len, max_depth, temp, scratch);
+
+    free(temp);
+    free(scratch);
+    return 0;
 }
 
 /* ========================================================================== */
@@ -301,24 +304,43 @@ typedef struct {
     uint8_t *data;
     size_t len;
     size_t capacity;
+    int failed;
 } byte_buffer;
 
-static void buffer_init(byte_buffer *buf) {
-    buf->capacity = 4096;
+static void buffer_init(byte_buffer *buf, size_t initial_capacity) {
+    if (initial_capacity < 4096) {
+        initial_capacity = 4096;
+    }
+    buf->capacity = initial_capacity;
     buf->data = (uint8_t *)malloc(buf->capacity);
     buf->len = 0;
+    buf->failed = (buf->data == NULL);
 }
 
 static void buffer_append(byte_buffer *buf, const void *data, size_t len) {
-    if (!buf->data) return;
+    if (!buf || buf->failed) return;
+    if (!data && len) {
+        buf->failed = 1;
+        return;
+    }
+    if (buf->len > SIZE_MAX - len) {
+        buf->failed = 1;
+        return;
+    }
 
     while (buf->len + len > buf->capacity) {
         /* Check for overflow before doubling */
-        if (buf->capacity > SIZE_MAX / 2) return;
+        if (buf->capacity > SIZE_MAX / 2) {
+            buf->failed = 1;
+            return;
+        }
 
         size_t new_capacity = buf->capacity * 2;
         uint8_t *new_data = (uint8_t *)realloc(buf->data, new_capacity);
-        if (!new_data) return;  /* Keep original buffer, will be freed later */
+        if (!new_data) {
+            buf->failed = 1;
+            return;
+        }
 
         buf->data = new_data;
         buf->capacity = new_capacity;
@@ -356,6 +378,8 @@ static void buffer_free(byte_buffer *buf) {
     free(buf->data);
     buf->data = NULL;
     buf->len = 0;
+    buf->capacity = 0;
+    buf->failed = 0;
 }
 
 /*
@@ -366,17 +390,18 @@ static void extract_numeric_with_positions(const uint8_t *data, size_t len, byte
     uint32_t line_num = 0;
 
     while (i < len) {
+        unsigned char ch = data[i];
         /* Track line numbers */
-        if (data[i] == '\n') {
+        if (ch == '\n') {
             line_num++;
             i++;
             continue;
         }
 
         /* Look for start of number */
-        if (isdigit(data[i]) ||
-            ((data[i] == '-' || data[i] == '+' || data[i] == '.') &&
-             i + 1 < len && (isdigit(data[i + 1]) || data[i + 1] == '.'))) {
+        if (isdigit((int)ch) ||
+            ((ch == '-' || ch == '+' || ch == '.') &&
+             i + 1 < len && (isdigit((int)(unsigned char)data[i + 1]) || data[i + 1] == '.'))) {
 
             uint32_t pos = (uint32_t)i;
 
@@ -391,14 +416,14 @@ static void extract_numeric_with_positions(const uint8_t *data, size_t len, byte
             }
 
             /* Integer part */
-            while (j < len && isdigit(data[j]) && num_len < 60) {
+            while (j < len && isdigit((int)(unsigned char)data[j]) && num_len < 60) {
                 num_buf[num_len++] = (char)data[j++];
             }
 
             /* Decimal part */
             if (j < len && data[j] == '.') {
                 num_buf[num_len++] = (char)data[j++];
-                while (j < len && isdigit(data[j]) && num_len < 60) {
+                while (j < len && isdigit((int)(unsigned char)data[j]) && num_len < 60) {
                     num_buf[num_len++] = (char)data[j++];
                 }
             }
@@ -409,7 +434,7 @@ static void extract_numeric_with_positions(const uint8_t *data, size_t len, byte
                 if (j < len && (data[j] == '-' || data[j] == '+')) {
                     num_buf[num_len++] = (char)data[j++];
                 }
-                while (j < len && isdigit(data[j]) && num_len < 60) {
+                while (j < len && isdigit((int)(unsigned char)data[j]) && num_len < 60) {
                     num_buf[num_len++] = (char)data[j++];
                 }
             }
@@ -422,7 +447,7 @@ static void extract_numeric_with_positions(const uint8_t *data, size_t len, byte
                 double val = strtod(num_buf, &endptr);
 
                 /* Check for valid finite number */
-                if (endptr != num_buf && val == val && val != 1.0/0.0 && val != -1.0/0.0) {
+                if (endptr != num_buf && isfinite(val)) {
                     /* Pack: position (4B) + line (4B) + float64 (8B) */
                     buffer_append_u32_le(out, pos);
                     buffer_append_u32_le(out, line_num);
@@ -480,10 +505,16 @@ static void extract_structure_fingerprint(const uint8_t *data, size_t len, byte_
 /* ========================================================================== */
 
 int rdt_seed_extract(const uint8_t *data, size_t data_len, uint8_t seed_out[32]) {
+    size_t pool_capacity;
+    size_t numeric_capacity;
+
     if (!data || !seed_out || data_len == 0) return -1;
 
+    pool_capacity = (data_len > SIZE_MAX - 1024u) ? data_len : data_len + 1024u;
+    numeric_capacity = (data_len > SIZE_MAX - 256u) ? data_len : data_len + 256u;
+
     byte_buffer pool;
-    buffer_init(&pool);
+    buffer_init(&pool, pool_capacity);
 
     if (!pool.data) return -1;
 
@@ -492,8 +523,13 @@ int rdt_seed_extract(const uint8_t *data, size_t data_len, uint8_t seed_out[32])
     /* Numeric extraction with positions */
     buffer_append(&pool, "NUMERIC:", 8);
     byte_buffer numeric;
-    buffer_init(&numeric);
+    buffer_init(&numeric, numeric_capacity);
     extract_numeric_with_positions(data, data_len, &numeric);
+    if (numeric.failed) {
+        buffer_free(&numeric);
+        buffer_free(&pool);
+        return -1;
+    }
     buffer_append_u32_le(&pool, (uint32_t)numeric.len);
     if (numeric.len > 0) {
         buffer_append(&pool, numeric.data, numeric.len);
@@ -509,10 +545,17 @@ int rdt_seed_extract(const uint8_t *data, size_t data_len, uint8_t seed_out[32])
     uint8_t raw_hash[32];
     sha256(data, data_len, raw_hash);
     buffer_append(&pool, raw_hash, 32);
+    if (pool.failed) {
+        buffer_free(&pool);
+        return -1;
+    }
 
     /* Apply mixing */
-    entropy_precursor_layer(pool.data, pool.len, 256);
-    recursive_entropy_mixer(pool.data, pool.len, 4);
+    if (entropy_precursor_layer(pool.data, pool.len, 256) != 0 ||
+        recursive_entropy_mixer(pool.data, pool.len, 4) != 0) {
+        buffer_free(&pool);
+        return -1;
+    }
 
     /* Final SHA-256 with domain separation */
     sha256_ctx ctx;
@@ -547,9 +590,15 @@ int rdt_seed_extract_file(const char *filepath, uint8_t seed_out[32]) {
     if (!f) return -1;
 
     /* Get file size */
-    fseek(f, 0, SEEK_END);
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return -1;
+    }
     long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if (size < 0 || fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return -1;
+    }
 
     if (size <= 0 || size > 100 * 1024 * 1024) {  /* Max 100 MB */
         fclose(f);
@@ -577,7 +626,8 @@ int rdt_seed_extract_file(const char *filepath, uint8_t seed_out[32]) {
 
 int rdt_seed_extract_files(const char **filepaths, size_t num_files, uint8_t seed_out[32]) {
     byte_buffer combined;
-    buffer_init(&combined);
+    if (!filepaths || num_files == 0 || !seed_out) return -1;
+    buffer_init(&combined, 4096u);
 
     if (!combined.data) return -1;
 
@@ -596,9 +646,17 @@ int rdt_seed_extract_files(const char **filepaths, size_t num_files, uint8_t see
             return -1;
         }
 
-        fseek(f, 0, SEEK_END);
+        if (fseek(f, 0, SEEK_END) != 0) {
+            fclose(f);
+            buffer_free(&combined);
+            return -1;
+        }
         long size = ftell(f);
-        fseek(f, 0, SEEK_SET);
+        if (size < 0 || fseek(f, 0, SEEK_SET) != 0) {
+            fclose(f);
+            buffer_free(&combined);
+            return -1;
+        }
 
         if (size < 0 || size > 100 * 1024 * 1024) {  /* Max 100 MB per file */
             fclose(f);
@@ -614,12 +672,22 @@ int rdt_seed_extract_files(const char **filepaths, size_t num_files, uint8_t see
                 return -1;
             }
             size_t bytes_read = fread(data, 1, (size_t)size, f);
+            if (bytes_read != (size_t)size) {
+                free(data);
+                fclose(f);
+                buffer_free(&combined);
+                return -1;
+            }
             buffer_append(&combined, data, bytes_read);
             free(data);
         }
 
         fclose(f);
         buffer_append(&combined, "\x1E", 1);  /* Record separator */
+        if (combined.failed) {
+            buffer_free(&combined);
+            return -1;
+        }
     }
 
     int result = rdt_seed_extract(combined.data, combined.len, seed_out);

@@ -1,0 +1,30 @@
+{
+  "fixture": "examples/sensor_data.csv",
+  "fixture_bytes": 600,
+  "single_file_seed_hex": "f2cb746be11d12125cacd7d2b3e09a9dd7f9775dde8e12edfdc0391a920b1e8e",
+  "double_file_seed_hex": "654a9d34e91286afe2203ee6eddfd108021bd966046f737bea5b6f5b94af60a1",
+  "deterministic_runs": 8,
+  "average_cli_s": 0.0022096433071419597,
+  "median_cli_s": 0.0020785409724339843,
+  "throughput_mib_s": 0.2589578996728943,
+  "avalanche_positions": [
+    0,
+    120,
+    240,
+    360,
+    480,
+    599
+  ],
+  "avalanche_bit_flips": [
+    120,
+    127,
+    117,
+    129,
+    142,
+    133
+  ],
+  "avalanche_mean_bits": 128,
+  "avalanche_min_bits": 117,
+  "avalanche_max_bits": 142,
+  "unique_mutated_outputs": 6
+}

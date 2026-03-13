@@ -5,12 +5,15 @@
 ```bash
 make clean
 make all
+npm run build
 ```
 
 This builds:
 - `rdt_prng_stream` - Original PRNG streaming generator
 - `rdt_prng_stream_v2` - Enhanced PRNG with cross-state diffusion
 - `rdt_prng_stream_v3` - Same v2 core with output-stage scrambling variant
+- `rdt_drbg` - Legacy experimental DRBG stream
+- `rdt_drbg_v2` - Improved DRBG path with HMAC-SHA256 core and RDT-conditioned convenience seeding
 - `rdt_seed_extractor` - High-quality seed extraction from sensor data
 - `splitmix64_stream` (via `make splitmix64_stream`) - conventional baseline stream generator for fair benchmarking
 
@@ -50,6 +53,17 @@ Combine entropy from multiple sources:
 ```bash
 ./rdt_seed_extractor sensor1.csv sensor2.csv sensor3.csv
 ```
+
+### Validate the Seed Extractor
+
+```bash
+make test-seed-extractor
+make validate-seed-extractor
+```
+
+Artifacts:
+- `results/seed_extractor_validation.json`
+- `results/seed_extractor_validation.md`
 
 ## Using with RDT-PRNG_STREAM_v2
 
@@ -136,6 +150,47 @@ rdt_seed_extract_file("sensor_data.csv", seed);
 your_prng_init(seed, 32);
 ```
 
+## Using the Improved DRBG (`rdt_drbg_v2`)
+
+### Basic Streaming Usage
+
+```bash
+# Default deterministic seed triplet
+./rdt_drbg_v2 | head -c 1048576 > drbg_v2.bin
+
+# Custom convenience seed triplet
+./rdt_drbg_v2 0x123456789abcdef0 0x0f1e2d3c4b5a6978 0xa55aa55aa55aa55a \
+  | head -c 1048576 > drbg_v2.bin
+
+# Real OS-entropy initialization for non-reproducible runs
+./rdt_drbg_v2 --system | head -c 1048576 > drbg_v2.bin
+
+# Optional personalization string with OS entropy
+./rdt_drbg_v2 --system rdt-demo | head -c 1048576 > drbg_v2.bin
+```
+
+The numeric-argument path is deterministic and useful for reproducible testing.
+If you want the repo's least misleading cryptographic initialization path, use `--system` or the `rdt_drbg_v2_init_system()` / `rdt_drbg_v2_reseed_system()` C APIs.
+
+### Known-Answer Test
+
+```bash
+make test-drbg-v2-kat
+make test-drbg-v2-system
+make test-seed-extractor
+make validate-seed-extractor
+```
+
+This runs the built-in SHA-256 HMAC-DRBG known-answer test, the system-entropy smoke test, and the maintained seed-extractor validation path.
+
+### External Battery Harness
+
+```bash
+python3 benchmarks/run_external_batteries.py
+```
+
+If `dieharder`, PractRand's `RNG_test`, or TestU01 are missing, the script records an honest `skipped` result in `results/external_battery_results.json`.
+
 ## Testing PRNG Output
 
 ### Generate Random Data
@@ -164,6 +219,7 @@ your_prng_init(seed, 32);
 
 ```bash
 make benchmark-honest
+npm run benchmark
 ```
 
 Outputs:
@@ -172,7 +228,16 @@ Outputs:
 - Includes side-by-side throughput/statistical summary for:
   - `rdt_prng_stream_v2`
   - `rdt_prng_stream_v3`
+  - `rdt_drbg_v2`
   - `splitmix64_stream`
+  - `openssl rand` when available on the host
+
+## One-Command Test Path
+
+```bash
+make test-all
+npm run test
+```
 
 ## What Makes the Seed Extractor Special?
 

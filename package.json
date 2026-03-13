@@ -1,0 +1,20 @@
+{
+  "name": "rdt256",
+  "private": true,
+  "version": "1.2.0",
+  "description": "Experimental RDT-based randomness research suite",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RRG314/rdt256.git"
+  },
+  "scripts": {
+    "build": "make all",
+    "test": "make test-all",
+    "test:drbg": "make test-drbg-v2-kat test-drbg-v2-system",
+    "test:seed": "make test-seed-extractor validate-seed-extractor",
+    "benchmark": "make benchmark-honest",
+    "report": "python3 tests/run_results.py && python3 tests/validate_seed_extractor.py",
+    "batteries": "python3 benchmarks/run_external_batteries.py"
+  }
+}

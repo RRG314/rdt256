@@ -13,6 +13,13 @@ The RDT suite includes procedures and scripts for evaluating:
 Testing is performed using both internal Python scripts and standard external test suites.  
 All tests are deterministic and reproducible.
 
+Current maintained local validation entry points:
+- `make test-drbg-v2-kat`
+- `make test-drbg-v2-system`
+- `make test-seed-extractor`
+- `python3 tests/run_results.py`
+- `python3 tests/validate_seed_extractor.py`
+
 ---
 
 ## Avalanche Testing

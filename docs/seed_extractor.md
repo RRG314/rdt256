@@ -1,5 +1,25 @@
 # RDT Seed Extractor - Validation Results
 
+## Current Local Validation Path
+
+For the maintained local validation path in this repo, use:
+
+```bash
+make test-seed-extractor
+python3 tests/validate_seed_extractor.py
+```
+
+Canonical generated artifacts:
+- `results/seed_extractor_validation.json`
+- `results/seed_extractor_validation.md`
+
+Current fixture-backed sample in this tree:
+- single-file fixture: `examples/sensor_data.csv`
+- current seed: `f2cb746be11d12125cacd7d2b3e09a9dd7f9775dde8e12edfdc0391a920b1e8e`
+- duplicate-file fixture seed: `654a9d34e91286afe2203ee6eddfd108021bd966046f737bea5b6f5b94af60a1`
+
+The historical measurements below are preserved as research notes. When they differ from the generated files under `results/`, trust the generated files.
+
 **Author:** Steven Reid
 **ORCID:** 0009-0003-9132-3410
 **Date:** January 7, 2026

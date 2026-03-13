@@ -4,8 +4,8 @@
     {
       "name": "rdt_prng_stream_v2",
       "bytes": 67108864,
-      "elapsed_s": 1.046801582997432,
-      "throughput_mib_s": 61.1386159894229,
+      "elapsed_s": 1.1475705000339076,
+      "throughput_mib_s": 55.76999408586137,
       "entropy_bits_per_byte": 7.999997007024269,
       "monobit_mean": 0.500005416572094,
       "runs": 268440147,
@@ -16,8 +16,8 @@
     {
       "name": "rdt_prng_stream_v3",
       "bytes": 67108864,
-      "elapsed_s": 1.2798818750015926,
-      "throughput_mib_s": 50.004614683617085,
+      "elapsed_s": 1.3490410830127075,
+      "throughput_mib_s": 47.44110524571559,
       "entropy_bits_per_byte": 7.999997205081494,
       "monobit_mean": 0.5000159218907356,
       "runs": 268437980,
@@ -26,24 +26,52 @@
       "quality_proxy": 0.00020486480516818857
     },
     {
+      "name": "rdt_drbg_v2",
+      "bytes": 67108864,
+      "elapsed_s": 2.7133880420587957,
+      "throughput_mib_s": 23.586748009488428,
+      "entropy_bits_per_byte": 7.99999740598855,
+      "monobit_mean": 0.5000042449682951,
+      "runs": 268409077,
+      "runs_expected": 268435455.98065144,
+      "lag1_corr_u64": 0.00011745834968642702,
+      "quality_proxy": 0.00012170331798152437
+    },
+    {
       "name": "splitmix64",
       "bytes": 67108864,
-      "elapsed_s": 0.06743858300615102,
-      "throughput_mib_s": 949.0116361751345,
+      "elapsed_s": 0.30508691701106727,
+      "throughput_mib_s": 209.7762848273115,
       "entropy_bits_per_byte": 7.999997268702014,
       "monobit_mean": 0.49998641572892666,
       "runs": 268420346,
       "runs_expected": 268435455.80185983,
       "lag1_corr_u64": -0.00014570587421651056,
       "quality_proxy": 0.00015929014528985193
+    },
+    {
+      "name": "openssl_rand",
+      "bytes": 67108864,
+      "elapsed_s": 0.18082979205064476,
+      "throughput_mib_s": 353.9239816306132,
+      "entropy_bits_per_byte": 7.999997219807491,
+      "monobit_mean": 0.5000418163836002,
+      "runs": 268432636,
+      "runs_expected": 268435454.1224444,
+      "lag1_corr_u64": -0.0004345159411745882,
+      "quality_proxy": 0.0004763323247748232
     }
   ],
   "findings": {
-    "v3_speedup_vs_v2": 0.8178892157497968,
-    "v2_speed_ratio_vs_splitmix": 0.06442346295756075,
-    "v3_speed_ratio_vs_splitmix": 0.05269125559424545,
+    "v3_speedup_vs_v2": 0.8506564510779231,
+    "v2_speed_ratio_vs_splitmix": 0.26585461808407657,
+    "v3_speed_ratio_vs_splitmix": 0.2261509459220772,
+    "drbg_v2_speed_ratio_vs_splitmix": 0.11243762863330863,
     "entropy_delta_v3_vs_v2": 1.9805722484278476e-07,
     "lag1_abs_delta_v3_vs_v2": -5.029794125507601e-05,
-    "quality_proxy_delta_v3_vs_v2": -3.979262261341341e-05
+    "quality_proxy_delta_v3_vs_v2": -3.979262261341341e-05,
+    "drbg_v2_quality_proxy": 0.00012170331798152437,
+    "drbg_v2_speed_ratio_vs_openssl": 0.066643542776668,
+    "drbg_v2_quality_delta_vs_openssl": -0.0003546290067932988
   }
 }

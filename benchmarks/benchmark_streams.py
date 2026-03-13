@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 from pathlib import Path
+import shutil
 import subprocess
 import time
 
@@ -18,7 +19,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def compile_tools() -> None:
-    subprocess.run(["make", "rdt_prng_stream_v2", "rdt_prng_stream_v3", "splitmix64_stream"], cwd=ROOT, check=True)
+    subprocess.run(
+        ["make", "rdt_prng_stream_v2", "rdt_prng_stream_v3", "rdt_drbg_v2", "splitmix64_stream"],
+        cwd=ROOT,
+        check=True,
+    )
 
 
 
@@ -101,11 +106,17 @@ def run(sample_mib: int) -> dict[str, object]:
     compile_tools()
     n_bytes = sample_mib * 1024 * 1024
 
-    rdt = evaluate_stream("rdt_prng_stream_v2", ["./rdt_prng_stream_v2"], n_bytes)
-    rdt_v3 = evaluate_stream("rdt_prng_stream_v3", ["./rdt_prng_stream_v3"], n_bytes)
-    splitmix = evaluate_stream("splitmix64", ["./splitmix64_stream"], n_bytes)
+    results: list[dict[str, float | str | int]] = [
+        evaluate_stream("rdt_prng_stream_v2", ["./rdt_prng_stream_v2"], n_bytes),
+        evaluate_stream("rdt_prng_stream_v3", ["./rdt_prng_stream_v3"], n_bytes),
+        evaluate_stream("rdt_drbg_v2", ["./rdt_drbg_v2"], n_bytes),
+        evaluate_stream("splitmix64", ["./splitmix64_stream"], n_bytes),
+    ]
 
-    by_name = {r["name"]: r for r in (rdt, rdt_v3, splitmix)}
+    if shutil.which("openssl"):
+        results.append(evaluate_stream("openssl_rand", ["openssl", "rand", str(n_bytes)], n_bytes))
+
+    by_name = {r["name"]: r for r in results}
     findings = {
         "v3_speedup_vs_v2": by_name["rdt_prng_stream_v3"]["throughput_mib_s"]
         / max(1e-9, by_name["rdt_prng_stream_v2"]["throughput_mib_s"]),
@@ -113,17 +124,29 @@ def run(sample_mib: int) -> dict[str, object]:
         / max(1e-9, by_name["splitmix64"]["throughput_mib_s"]),
         "v3_speed_ratio_vs_splitmix": by_name["rdt_prng_stream_v3"]["throughput_mib_s"]
         / max(1e-9, by_name["splitmix64"]["throughput_mib_s"]),
+        "drbg_v2_speed_ratio_vs_splitmix": by_name["rdt_drbg_v2"]["throughput_mib_s"]
+        / max(1e-9, by_name["splitmix64"]["throughput_mib_s"]),
         "entropy_delta_v3_vs_v2": by_name["rdt_prng_stream_v3"]["entropy_bits_per_byte"]
         - by_name["rdt_prng_stream_v2"]["entropy_bits_per_byte"],
         "lag1_abs_delta_v3_vs_v2": abs(by_name["rdt_prng_stream_v3"]["lag1_corr_u64"])
         - abs(by_name["rdt_prng_stream_v2"]["lag1_corr_u64"]),
         "quality_proxy_delta_v3_vs_v2": by_name["rdt_prng_stream_v3"]["quality_proxy"]
         - by_name["rdt_prng_stream_v2"]["quality_proxy"],
+        "drbg_v2_quality_proxy": by_name["rdt_drbg_v2"]["quality_proxy"],
     }
+    if "openssl_rand" in by_name:
+        findings["drbg_v2_speed_ratio_vs_openssl"] = (
+            by_name["rdt_drbg_v2"]["throughput_mib_s"]
+            / max(1e-9, by_name["openssl_rand"]["throughput_mib_s"])
+        )
+        findings["drbg_v2_quality_delta_vs_openssl"] = (
+            by_name["rdt_drbg_v2"]["quality_proxy"]
+            - by_name["openssl_rand"]["quality_proxy"]
+        )
 
     return {
         "sample_mib": sample_mib,
-        "results": [rdt, rdt_v3, splitmix],
+        "results": results,
         "findings": findings,
     }
 
@@ -144,9 +167,14 @@ def to_markdown(obj: dict[str, object]) -> str:
     lines.append(f"- v3 speedup vs v2: `{f['v3_speedup_vs_v2']:.3f}x`")
     lines.append(f"- v2 speed ratio vs SplitMix64: `{f['v2_speed_ratio_vs_splitmix']:.3f}`")
     lines.append(f"- v3 speed ratio vs SplitMix64: `{f['v3_speed_ratio_vs_splitmix']:.3f}`")
+    lines.append(f"- DRBG v2 speed ratio vs SplitMix64: `{f['drbg_v2_speed_ratio_vs_splitmix']:.3f}`")
     lines.append(f"- Entropy delta (v3-v2): `{f['entropy_delta_v3_vs_v2']:.6f}` bits/byte")
     lines.append(f"- |lag1| delta (v3-v2): `{f['lag1_abs_delta_v3_vs_v2']:.6f}`")
     lines.append(f"- quality_proxy delta (v3-v2): `{f['quality_proxy_delta_v3_vs_v2']:.6f}` (negative means v3 better)")
+    lines.append(f"- DRBG v2 quality_proxy: `{f['drbg_v2_quality_proxy']:.6f}`")
+    if "drbg_v2_speed_ratio_vs_openssl" in f:
+        lines.append(f"- DRBG v2 speed ratio vs OpenSSL rand: `{f['drbg_v2_speed_ratio_vs_openssl']:.3f}`")
+        lines.append(f"- DRBG v2 quality_proxy delta vs OpenSSL rand: `{f['drbg_v2_quality_delta_vs_openssl']:.6f}`")
     lines.append("- This is a statistical/throughput comparison only; not a security proof.")
     return "\n".join(lines) + "\n"
 

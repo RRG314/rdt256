@@ -1,50 +1,122 @@
-**RDT256 Cryptographic Suite (Experimental Research Code)**
+# RDT256
 
-Author: Steven Reid
+[![CI](https://github.com/RRG314/rdt256/actions/workflows/ci.yml/badge.svg)](https://github.com/RRG314/rdt256/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/RRG314/rdt256?display_name=tag)](https://github.com/RRG314/rdt256/releases)
+[![License](https://img.shields.io/github/license/RRG314/rdt256)](LICENSE)
+[![Language](https://img.shields.io/badge/language-C%20%2B%20Python-blue)](README.md)
+[![Status](https://img.shields.io/badge/status-experimental-orange)](docs/security.md)
 
-ORCID:0009-0003-9132-3410
+Experimental randomness research suite built around the RDT mixing principle.
 
+Maintained components in the current tree:
+- `rdt_core`: 64-bit nonlinear mixing primitive
+- `rdt_prng_stream`, `rdt_prng_stream_v2`, `rdt_prng_stream_v3`: RDT-centered stream generators
+- `rdt_drbg`: legacy custom experimental DRBG
+- `rdt_drbg_v2`: HMAC-SHA256 DRBG-style path with deterministic RDT seeding and OS-entropy seeding
+- `rdt_seed_extractor`: seed-conditioning pipeline for file/sensor-style inputs
+
+Author: Steven Reid  
+ORCID: `0009-0003-9132-3410`  
 License: MIT
 
+## Security Posture
 
-
-**IMPORTANT DISCLAIMER**
 This repository contains experimental research code, not production cryptographic software.
-The RDT-CORE, RDT-PRNG, RDT-PRNG_STREAM, RDT-PRNG_STREAM_v2, and RDT-DRBG components:
 
-* have not undergone formal cryptanalysis
-* have no proven security guarantees
-* are not standardized primitives
-* must NOT be used for real-world security, encryption, authentication, key generation, or any system requiring cryptographically secure randomness
+None of the generators or extractors in this repo should currently be described as:
+- standardized
+- certified
+- formally cryptanalyzed
+- ready for production key generation or protocol security use
 
-All components are intended solely for research, experimentation, benchmarking, and mathematical exploration.
-Nothing here should be considered secure.
+The most defensible DRBG interface in the repo is `rdt_drbg_v2`, but even that path is still an experimental module rather than a validated cryptographic product.
 
-## REPRODUCIBILITY STATUS (IMPORTANT)
+## Canonical Entry Points
 
-Historical benchmark numbers and third-party battery summaries in this document are research notes and may depend on prior environments.
+If you are reviewing or reproducing the repo, start here:
+- [REPO_INVENTORY_AND_REPRODUCTION_REPORT.md](REPO_INVENTORY_AND_REPRODUCTION_REPORT.md)
+- [QUICKSTART.md](QUICKSTART.md)
+- [docs/prng.md](docs/prng.md)
+- [docs/security.md](docs/security.md)
+- [docs/seed_extractor.md](docs/seed_extractor.md)
+
+Canonical generated evidence currently tracked in the tree:
+- `results/stream_benchmark_results.json`
+- `results/stream_benchmark_report.md`
+- `results/seed_extractor_validation.json`
+- `results/seed_extractor_validation.md`
+- `results/external_battery_results.json`
+
+When historical prose in this README disagrees with generated artifacts in `results/`, trust the generated artifacts.
+
+## Quick Start
+
+Build everything:
+
+```bash
+make clean
+make all
+```
+
+Run the maintained local validation path:
+
+```bash
+make test-drbg-v2-kat
+make test-drbg-v2-system
+make test-seed-extractor
+python3 tests/run_results.py
+python3 tests/validate_seed_extractor.py
+```
+
+Optional npm wrapper commands are also available:
+
+```bash
+npm run build
+npm run test
+npm run benchmark
+```
+
+## Current Maintained Paths
+
+Recommended DRBG path:
+- `rdt_drbg_v2`
+- context-based HMAC-SHA256 DRBG-style construction
+- deterministic `init_u64` path for reproducibility
+- `init_system` / `reseed_system` for OS-entropy-backed runs
+
+Recommended seed-conditioning path:
+- `rdt_seed_extractor`
+- deterministic file-to-seed transformation
+- tested through direct API checks and a fixture-based validation report
+
+Recommended RDT stream path:
+- `rdt_prng_stream_v2` for the core maintained RDT stream
+- `rdt_prng_stream_v3` for the output-scrambled variant
+
+## Reproducibility Status
+
 For current local, reproducible measurements in this repository, use:
 
 ```bash
+make test-drbg-v2-kat
+make test-drbg-v2-system
+make test-seed-extractor
 make benchmark-honest
 python3 tests/run_results.py
+python3 tests/validate_seed_extractor.py
+python3 benchmarks/run_external_batteries.py
 ```
 
-These commands now test the actual stream binaries (`rdt_prng_stream_v2`, `rdt_prng_stream_v3`) and produce:
-- `results/stream_benchmark_results.json`
-- `results/stream_benchmark_report.md`
-- `RDT_RESULTS.txt`
+These commands exercise:
+- the NIST-derived known-answer test for `rdt_drbg_v2`
+- the `rdt_drbg_v2` system-entropy path
+- the direct seed-extractor API/fixture tests
+- the actual stream binaries (`rdt_prng_stream_v2`, `rdt_prng_stream_v3`, `rdt_drbg_v2`)
+- the optional external-battery runner
 
-Treat those generated files as the canonical local evidence for speed/statistical behavior.
+## Historical Research Notes
 
-## UPGRADED VARIANT (v3)
-
-`rdt_prng_stream_v3` keeps the same `v2` state transition and adds a lightweight
-output scrambler (known method: SplitMix-style finalizer) for a quality-tuned variant.
-
-- It is an output-stage variant only; core state update remains RDT v2.
-- It is evaluated side-by-side with `v2` and `splitmix64_stream` in `make benchmark-honest`.
-- Any performance claims should come from generated files in `results/`, not this README text.
+The detailed research notes below are preserved for reference. They contain useful background, but some sections describe historical measurements or earlier interpretations. Use the documents and generated files listed above as the current reviewer-facing source of truth.
 
 **OVERVIEW**
 The RDT Cryptographic Suite is a set of experimental randomness primitives based on a nonlinear transformation combining:
@@ -64,6 +136,7 @@ RDT-PRNG_STREAM (Experimental) — Streaming RDT-PRNG variant for external test 
 RDT-PRNG_STREAM_v2 (Experimental) — Enhanced variant with cross-state diffusion
 RDT-PRNG_STREAM_v3 (Experimental) — Same v2 generator core with output-stage scrambling variant
 RDT-DRBG (Experimental) — DRBG with internal key evolution and reseeding
+RDT-DRBG_v2 (Experimental, standard-like core) — HMAC-SHA256 DRBG with context API and RDT-conditioned convenience seeding
 RDT Seed Extractor (Experimental) — High-quality seed extraction from sensor data
 Test Suite (Stable) — Avalanche and statistical randomness tests
 
@@ -87,10 +160,17 @@ rdt_prng_stream.c
 rdt_prng_stream_v2.c
 rdt_prng_stream_v2.h
 rdt_drbg.c
+rdt_drbg_stream.c
+rdt_drbg_v2.c
+rdt_drbg_v2.h
+rdt_drbg_v2_stream.c
+rdt_sha256.c
+rdt_sha256.h
 rdt.h
 
 tests/
 run_results.py
+rdt_drbg_v2_test.c
 
 docs/
 architecture.md
@@ -448,6 +528,9 @@ Adds evolving key material, reseeding, and forward/backward mixing concepts.
 Research mechanism only.
 Not a standardized or vetted DRBG.
 Not appropriate for real-world security.
+
+RDT-DRBG_v2 is the newer recommended DRBG path for disciplined integration work inside this repository.
+It keeps the repo's RDT-centered seeding story, but moves the actual DRBG state machine onto an HMAC-SHA256 construction with instantiate/reseed/generate semantics, request limits, post-generate updates, and a built-in NIST known-answer test.
 
 TESTING
 Internal Statistical Tests

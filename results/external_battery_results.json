@@ -1,0 +1,32 @@
+{
+  "generator": "./rdt_drbg_v2",
+  "generated_at": "2026-03-13 10:44:59",
+  "snapshot": "release-prep",
+  "tests": {
+    "dieharder": {
+      "status": "timeout",
+      "command": "./rdt_drbg_v2 | /tmp/rdt256-batteries/local/bin/dieharder -a -g 200",
+      "log_path": "results/external_battery_logs/dieharder.log",
+      "note": "Saved timeout snapshot after 5400 seconds; visible tail entries in the saved log are PASSED lines."
+    },
+    "practrand": {
+      "status": "ok",
+      "command": "./rdt_drbg_v2 | /tmp/rdt256-batteries/PractRand/RNG_test stdin64 -tlmin 1GB -tlmax 1GB -tf 2 -te 1 -tlmaxonly -a",
+      "log_path": "results/external_battery_logs/practrand.log",
+      "bytes_tested": 1073741824,
+      "summary": "Completed through 1 GiB with no FAIL, ERROR, unusual, or suspicious markers in the saved log."
+    },
+    "testu01_smallcrush": {
+      "status": "ok",
+      "command": "DYLD_LIBRARY_PATH=/tmp/rdt256-batteries/local/lib ./benchmarks/testu01_rdt_drbg_v2 small",
+      "log_path": "results/external_battery_logs/testu01_small.log",
+      "summary": "Completed with 15/15 statistics passed."
+    },
+    "testu01_bigcrush": {
+      "status": "running",
+      "command": "DYLD_LIBRARY_PATH=/tmp/rdt256-batteries/local/lib ./benchmarks/testu01_rdt_drbg_v2 big",
+      "log_path": "results/external_battery_logs/testu01_big_manual.log",
+      "note": "Long-running BigCrush process is still active on the local machine."
+    }
+  }
+}
